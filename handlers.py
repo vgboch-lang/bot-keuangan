@@ -459,31 +459,33 @@ dan waktu laporan otomatis. Semua nominal adalah per bulan.
 📅 <b>Waktu Laporan Otomatis:</b> {}
 """.format(settings.get('report_time', '20:00'))
     
-    text += "\n💰 <b>Budget per kategori (per bulan):</b>\n"
-    budget_categories = [
-        ('makanan', '🍔 Makanan'),
-        ('jajanan', '🍿 Jajanan'),
-        ('minuman', '🥤 Minuman'),
-        ('rokok', '🚬 Rokok'),
-        ('transport', '🚗 Transport'),
-        ('belanja', '🛒 Belanja'),
-        ('tagihan', '📄 Tagihan'),
-        ('hiburan', '🎮 Hiburan'),
-        ('kesehatan', '💊 Kesehatan'),
-        ('pendidikan', '📚 Pendidikan')
-    ]
-    
-    for key, label in budget_categories:
-        value = settings.get(f'budget_{key}', 0)
-        if value and value > 0:
-            text += f"• {label}: {format_rupiah(value)}\n"
-        else:
-            text += f"• {label}: Belum diatur\n"
-    
-    inv_target = settings.get('investment_target', 0)
-    inc_target = settings.get('income_target', 0)
-    text += f"\n📈 <b>Target Investasi Bulanan:</b> {format_rupiah(inv_target) if inv_target > 0 else 'Belum diatur'}"
-    text += f"\n💰 <b>Target Pemasukan Bulanan:</b> {format_rupiah(inc_target) if inc_target > 0 else 'Belum diatur'}"
+   # Budget per kategori (tampilkan "Belum diatur" jika 0)
+text += "\n💰 <b>Budget per kategori (per bulan):</b>\n"
+budget_categories = [
+    ('makanan', '🍔 Makanan'),
+    ('jajanan', '🍿 Jajanan'),
+    ('minuman', '🥤 Minuman'),
+    ('rokok', '🚬 Rokok'),
+    ('transport', '🚗 Transport'),
+    ('belanja', '🛒 Belanja'),
+    ('tagihan', '📄 Tagihan'),
+    ('hiburan', '🎮 Hiburan'),
+    ('kesehatan', '💊 Kesehatan'),
+    ('pendidikan', '📚 Pendidikan')
+]
+
+for key, label in budget_categories:
+    value = settings.get(f'budget_{key}', 0)
+    if value > 0:
+        text += f"• {label}: {format_rupiah(value)}\n"
+    else:
+        text += f"• {label}: Belum diatur\n"
+
+# Target Investasi & Pemasukan
+inv_target = settings.get('investment_target', 0)
+inc_target = settings.get('income_target', 0)
+text += f"\n📈 <b>Target Investasi Bulanan:</b> {format_rupiah(inv_target) if inv_target > 0 else 'Belum diatur'}"
+text += f"\n💰 <b>Target Pemasukan Bulanan:</b> {format_rupiah(inc_target) if inc_target > 0 else 'Belum diatur'}"
     
     text += """
     
@@ -1083,32 +1085,40 @@ dan waktu laporan otomatis. Semua nominal adalah per bulan.
 
 📅 <b>Waktu Laporan Otomatis:</b> {}
 """.format(settings.get('report_time', '20:00'))
+
+
+
     
-    text += "\n💰 <b>Budget per kategori (per bulan):</b>\n"
-    budget_categories = [
-        ('makanan', '🍔 Makanan'),
-        ('jajanan', '🍿 Jajanan'),
-        ('minuman', '🥤 Minuman'),
-        ('rokok', '🚬 Rokok'),
-        ('transport', '🚗 Transport'),
-        ('belanja', '🛒 Belanja'),
-        ('tagihan', '📄 Tagihan'),
-        ('hiburan', '🎮 Hiburan'),
-        ('kesehatan', '💊 Kesehatan'),
-        ('pendidikan', '📚 Pendidikan')
-    ]
-    
-    for key, label in budget_categories:
-        value = settings.get(f'budget_{key}', 0)
-        if value and value > 0:
-            text += f"• {label}: {format_rupiah(value)}\n"
-        else:
-            text += f"• {label}: Belum diatur\n"
-    
-    inv_target = settings.get('investment_target', 0)
-    inc_target = settings.get('income_target', 0)
-    text += f"\n📈 <b>Target Investasi Bulanan:</b> {format_rupiah(inv_target) if inv_target > 0 else 'Belum diatur'}"
-    text += f"\n💰 <b>Target Pemasukan Bulanan:</b> {format_rupiah(inc_target) if inc_target > 0 else 'Belum diatur'}"
+    # Budget per kategori (tampilkan "Belum diatur" jika 0)
+text += "\n💰 <b>Budget per kategori (per bulan):</b>\n"
+budget_categories = [
+    ('makanan', '🍔 Makanan'),
+    ('jajanan', '🍿 Jajanan'),
+    ('minuman', '🥤 Minuman'),
+    ('rokok', '🚬 Rokok'),
+    ('transport', '🚗 Transport'),
+    ('belanja', '🛒 Belanja'),
+    ('tagihan', '📄 Tagihan'),
+    ('hiburan', '🎮 Hiburan'),
+    ('kesehatan', '💊 Kesehatan'),
+    ('pendidikan', '📚 Pendidikan')
+]
+
+for key, label in budget_categories:
+    value = settings.get(f'budget_{key}', 0)
+    if value > 0:
+        text += f"• {label}: {format_rupiah(value)}\n"
+    else:
+        text += f"• {label}: Belum diatur\n"
+
+# Target Investasi & Pemasukan
+inv_target = settings.get('investment_target', 0)
+inc_target = settings.get('income_target', 0)
+text += f"\n📈 <b>Target Investasi Bulanan:</b> {format_rupiah(inv_target) if inv_target > 0 else 'Belum diatur'}"
+text += f"\n💰 <b>Target Pemasukan Bulanan:</b> {format_rupiah(inc_target) if inc_target > 0 else 'Belum diatur'}"
+
+
+
     
     text += """
     
