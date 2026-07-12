@@ -383,6 +383,8 @@ def get_previous_week_summary(user_id: int, start_date) -> Dict:
 
 
 
+
+
 def _get_user_settings_conn(conn, user_id: int) -> Dict:
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM user_settings WHERE user_id = ?', (user_id,))
@@ -391,16 +393,30 @@ def _get_user_settings_conn(conn, user_id: int) -> Dict:
     if row:
         return dict(row)
     else:
-        from config import DEFAULT_BUDGET, DEFAULT_INVESTMENT_TARGET, DEFAULT_INCOME_TARGET
+        # Default: semua budget 0 (belum diatur)
         return {
             'user_id': user_id,
             'report_time': '20:00',
             'is_premium': 0,
             'premium_expiry': None,
-            **{f'budget_{k}': v for k, v in DEFAULT_BUDGET.items()},
-            'investment_target': DEFAULT_INVESTMENT_TARGET,
-            'income_target': DEFAULT_INCOME_TARGET
+            'budget_makanan': 0,
+            'budget_jajanan': 0,
+            'budget_minuman': 0,
+            'budget_rokok': 0,
+            'budget_transport': 0,
+            'budget_belanja': 0,
+            'budget_tagihan': 0,
+            'budget_hiburan': 0,
+            'budget_kesehatan': 0,
+            'budget_pendidikan': 0,
+            'budget_lainnya': 0,
+            'investment_target': 0,
+            'income_target': 0
         }
+
+
+
+
 
 def get_user_settings(user_id: int) -> Dict:
     conn = get_db()
@@ -408,6 +424,12 @@ def get_user_settings(user_id: int) -> Dict:
         return _get_user_settings_conn(conn, user_id)
     finally:
         conn.close()
+
+
+
+
+
+
 
 def update_user_setting(user_id: int, key: str, value):
     conn = get_db()
@@ -417,18 +439,31 @@ def update_user_setting(user_id: int, key: str, value):
     exists = cursor.fetchone()
 
     if not exists:
-        from config import DEFAULT_BUDGET, DEFAULT_INVESTMENT_TARGET, DEFAULT_INCOME_TARGET
-        columns = 'user_id, report_time, is_premium'
-        budget_columns = ', '.join([f'budget_{k}' for k in DEFAULT_BUDGET.keys()])
-        placeholders = ', '.join(['?'] * (3 + len(DEFAULT_BUDGET)))
-        cursor.execute(f'''
-            INSERT INTO user_settings ({columns}, {budget_columns}, investment_target, income_target)
-            VALUES ({placeholders}, ?, ?)
-        ''', (user_id, '20:00', 0, *DEFAULT_BUDGET.values(), DEFAULT_INVESTMENT_TARGET, DEFAULT_INCOME_TARGET))
+        # Insert default semua budget 0
+        cursor.execute('''
+            INSERT INTO user_settings (
+                user_id, report_time, is_premium, premium_expiry,
+                budget_makanan, budget_jajanan, budget_minuman,
+                budget_rokok, budget_transport, budget_belanja,
+                budget_tagihan, budget_hiburan, budget_kesehatan,
+                budget_pendidikan, budget_lainnya,
+                investment_target, income_target
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            user_id, '20:00', 0, None,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0
+        ))
 
     cursor.execute(f'UPDATE user_settings SET {key} = ? WHERE user_id = ?', (value, user_id))
     conn.commit()
     conn.close()
+
+
+
+
+
+
 
 def get_all_users() -> List[int]:
     conn = get_db()
