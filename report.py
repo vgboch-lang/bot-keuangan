@@ -342,20 +342,34 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
             ]))
             story.append(investasi_table)
             story.append(Spacer(1, 0.1*inch))
+
+
+
+
+
+        
         
         # BUDGET & TARGET (hanya bulanan)
-        if show_budget:
-            if data['budget']:
-                story.append(Paragraph("- Budget & Target", heading_style))
-                budget_data = [['Kategori', 'Budget', 'Realisasi', 'Sisa', 'Status']]
-                for item in data['budget']:
-                    status_text = '[OK]' if item['status'] == 'Aman' else '[!]'
-                    budget_data.append([
-                        item['kategori'],
-                        format_rupiah(item['budget']),
-                        format_rupiah(item['realisasi']),
-                        format_rupiah(item['sisa']),
-                        f"{status_text} {item['status']}"
+        if data['budget']:
+    budget_data = [['Kategori', 'Budget', 'Realisasi', 'Sisa', 'Status']]
+    for item in data['budget']:
+        if item['budget'] > 0:  # ← hanya tampilkan jika budget > 0
+            status_text = '[OK]' if item['status'] == 'Aman' else '[!]'
+            budget_data.append([
+                item['kategori'],
+                format_rupiah(item['budget']),
+                format_rupiah(item['realisasi']),
+                format_rupiah(item['sisa']),
+                f"{status_text} {item['status']}"
+            ])
+    # Kalau cuma header doang (tidak ada data), skip
+    if len(budget_data) > 1:
+        # tampilkan tabel
+
+
+
+
+        
                     ])
                 budget_table = Table(budget_data, colWidths=col_widths_budget)
                 budget_table.setStyle(TableStyle([
