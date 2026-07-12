@@ -446,10 +446,11 @@ async def show_edit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
 
 # ==================== SETTINGS ====================
 
+# ==================== SETTINGS MENU ====================
 async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     settings = get_user_settings(user_id)
-    
+
     text = """
 ⚙️ <b>Settings</b>
 
@@ -458,35 +459,33 @@ dan waktu laporan otomatis. Semua nominal adalah per bulan.
 
 📅 <b>Waktu Laporan Otomatis:</b> {}
 """.format(settings.get('report_time', '20:00'))
-    
-   # Budget per kategori (tampilkan "Belum diatur" jika 0)
-text += "\n💰 <b>Budget per kategori (per bulan):</b>\n"
-budget_categories = [
-    ('makanan', '🍔 Makanan'),
-    ('jajanan', '🍿 Jajanan'),
-    ('minuman', '🥤 Minuman'),
-    ('rokok', '🚬 Rokok'),
-    ('transport', '🚗 Transport'),
-    ('belanja', '🛒 Belanja'),
-    ('tagihan', '📄 Tagihan'),
-    ('hiburan', '🎮 Hiburan'),
-    ('kesehatan', '💊 Kesehatan'),
-    ('pendidikan', '📚 Pendidikan')
-]
 
-for key, label in budget_categories:
-    value = settings.get(f'budget_{key}', 0)
-    if value > 0:
-        text += f"• {label}: {format_rupiah(value)}\n"
-    else:
-        text += f"• {label}: Belum diatur\n"
+    text += "\n💰 <b>Budget per kategori (per bulan):</b>\n"
+    budget_categories = [
+        ('makanan', '🍔 Makanan'),
+        ('jajanan', '🍿 Jajanan'),
+        ('minuman', '🥤 Minuman'),
+        ('rokok', '🚬 Rokok'),
+        ('transport', '🚗 Transport'),
+        ('belanja', '🛒 Belanja'),
+        ('tagihan', '📄 Tagihan'),
+        ('hiburan', '🎮 Hiburan'),
+        ('kesehatan', '💊 Kesehatan'),
+        ('pendidikan', '📚 Pendidikan')
+    ]
 
-# Target Investasi & Pemasukan
-inv_target = settings.get('investment_target', 0)
-inc_target = settings.get('income_target', 0)
-text += f"\n📈 <b>Target Investasi Bulanan:</b> {format_rupiah(inv_target) if inv_target > 0 else 'Belum diatur'}"
-text += f"\n💰 <b>Target Pemasukan Bulanan:</b> {format_rupiah(inc_target) if inc_target > 0 else 'Belum diatur'}"
-    
+    for key, label in budget_categories:
+        value = settings.get(f'budget_{key}', 0)
+        if value > 0:
+            text += f"• {label}: {format_rupiah(value)}\n"
+        else:
+            text += f"• {label}: Belum diatur\n"
+
+    inv_target = settings.get('investment_target', 0)
+    inc_target = settings.get('income_target', 0)
+    text += f"\n📈 <b>Target Investasi Bulanan:</b> {format_rupiah(inv_target) if inv_target > 0 else 'Belum diatur'}"
+    text += f"\n💰 <b>Target Pemasukan Bulanan:</b> {format_rupiah(inc_target) if inc_target > 0 else 'Belum diatur'}"
+
     text += """
     
 💡 <b>Tips:</b>
@@ -495,7 +494,7 @@ text += f"\n💰 <b>Target Pemasukan Bulanan:</b> {format_rupiah(inc_target) if 
 • Target Pemasukan = target pemasukan per bulan
 • Laporan otomatis dikirim setiap hari jam yang kamu atur
 """
-    
+
     await update.message.reply_text(
         text,
         parse_mode=ParseMode.HTML,
@@ -1090,36 +1089,46 @@ dan waktu laporan otomatis. Semua nominal adalah per bulan.
 
     
     # Budget per kategori (tampilkan "Belum diatur" jika 0)
-text += "\n💰 <b>Budget per kategori (per bulan):</b>\n"
-budget_categories = [
-    ('makanan', '🍔 Makanan'),
-    ('jajanan', '🍿 Jajanan'),
-    ('minuman', '🥤 Minuman'),
-    ('rokok', '🚬 Rokok'),
-    ('transport', '🚗 Transport'),
-    ('belanja', '🛒 Belanja'),
-    ('tagihan', '📄 Tagihan'),
-    ('hiburan', '🎮 Hiburan'),
-    ('kesehatan', '💊 Kesehatan'),
-    ('pendidikan', '📚 Pendidikan')
-]
+# ==================== SETTINGS MENU ====================
+async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    settings = get_user_settings(user_id)
 
-for key, label in budget_categories:
-    value = settings.get(f'budget_{key}', 0)
-    if value > 0:
-        text += f"• {label}: {format_rupiah(value)}\n"
-    else:
-        text += f"• {label}: Belum diatur\n"
+    text = """
+⚙️ <b>Settings</b>
 
-# Target Investasi & Pemasukan
-inv_target = settings.get('investment_target', 0)
-inc_target = settings.get('income_target', 0)
-text += f"\n📈 <b>Target Investasi Bulanan:</b> {format_rupiah(inv_target) if inv_target > 0 else 'Belum diatur'}"
-text += f"\n💰 <b>Target Pemasukan Bulanan:</b> {format_rupiah(inc_target) if inc_target > 0 else 'Belum diatur'}"
+💰 Di sini kamu bisa mengatur budget bulanan, target investasi, 
+dan waktu laporan otomatis. Semua nominal adalah per bulan.
 
+📅 <b>Waktu Laporan Otomatis:</b> {}
+""".format(settings.get('report_time', '20:00'))
 
+    text += "\n💰 <b>Budget per kategori (per bulan):</b>\n"
+    budget_categories = [
+        ('makanan', '🍔 Makanan'),
+        ('jajanan', '🍿 Jajanan'),
+        ('minuman', '🥤 Minuman'),
+        ('rokok', '🚬 Rokok'),
+        ('transport', '🚗 Transport'),
+        ('belanja', '🛒 Belanja'),
+        ('tagihan', '📄 Tagihan'),
+        ('hiburan', '🎮 Hiburan'),
+        ('kesehatan', '💊 Kesehatan'),
+        ('pendidikan', '📚 Pendidikan')
+    ]
 
-    
+    for key, label in budget_categories:
+        value = settings.get(f'budget_{key}', 0)
+        if value > 0:
+            text += f"• {label}: {format_rupiah(value)}\n"
+        else:
+            text += f"• {label}: Belum diatur\n"
+
+    inv_target = settings.get('investment_target', 0)
+    inc_target = settings.get('income_target', 0)
+    text += f"\n📈 <b>Target Investasi Bulanan:</b> {format_rupiah(inv_target) if inv_target > 0 else 'Belum diatur'}"
+    text += f"\n💰 <b>Target Pemasukan Bulanan:</b> {format_rupiah(inc_target) if inc_target > 0 else 'Belum diatur'}"
+
     text += """
     
 💡 <b>Tips:</b>
@@ -1128,8 +1137,8 @@ text += f"\n💰 <b>Target Pemasukan Bulanan:</b> {format_rupiah(inc_target) if 
 • Target Pemasukan = target pemasukan per bulan
 • Laporan otomatis dikirim setiap hari jam yang kamu atur
 """
-    
-    await query.edit_message_text(
+
+    await update.message.reply_text(
         text,
         parse_mode=ParseMode.HTML,
         reply_markup=get_settings_menu()
