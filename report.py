@@ -56,10 +56,6 @@ def format_tanggal_with_day(date_obj):
 
 # ============ GENERATE PDF REPORT ============
 def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
-    """
-    Generate PDF laporan keuangan dengan desain final dan konten dinamis.
-    label: 'Harian', 'Mingguan', 'Bulanan', 'BulanIni'
-    """
     data = get_report_data_optimized(user_id, start_date.isoformat(), end_date.isoformat())
     
     if not data['pemasukan'] and not data['investasi'] and not data['pengeluaran']:
@@ -127,39 +123,28 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
     heading_style = ParagraphStyle('Heading', parent=styles['Heading2'], fontSize=12, textColor=COLOR_NAVY, fontName='Helvetica-Bold', spaceAfter=6)
     insight_style = ParagraphStyle('Insight', parent=styles['Normal'], fontSize=9, textColor=COLOR_BLACK, fontName='Helvetica-Bold', spaceAfter=3)
     body_style = ParagraphStyle('Body', parent=styles['Normal'], fontSize=9, textColor=COLOR_BLACK)
-    ringkasan_style = ParagraphStyle(
-        'Ringkasan',
-        parent=styles['Normal'],
-        fontSize=11,
-        textColor=COLOR_NAVY,
-        fontName='Helvetica-Bold',
-        spaceAfter=2,
-        alignment=TA_CENTER
-    )
+    ringkasan_style = ParagraphStyle('Ringkasan', parent=styles['Normal'], fontSize=11, textColor=COLOR_NAVY, fontName='Helvetica-Bold', spaceAfter=2, alignment=TA_CENTER)
     
     # ============================================================
-    # HALAMAN 1 (selalu ada)
+    # HALAMAN 1
     # ============================================================
     label_upper = label.upper()
     story.append(Paragraph(f"- LAPORAN KEUANGAN {label_upper}", title_style))
     story.append(Paragraph(data['periode'], subtitle_style))
     story.append(Spacer(1, 0.1*inch))
     
-    # RINGKASAN
     story.append(Paragraph(f"- Pemasukan = {format_rupiah(data['ringkasan']['pemasukan'])}", ringkasan_style))
     story.append(Paragraph(f"- Investasi = {format_rupiah(data['ringkasan']['investasi'])}", ringkasan_style))
     story.append(Paragraph(f"- Pengeluaran = {format_rupiah(data['ringkasan']['pengeluaran'])}", ringkasan_style))
     story.append(Paragraph(f"- Saldo = {format_rupiah(data['ringkasan']['saldo'])}", ringkasan_style))
     story.append(Spacer(1, 0.08*inch))
     
-    # INSIGHT
     if data['insight']:
         story.append(Paragraph("- Insight", heading_style))
         for insight in data['insight']:
             story.append(Paragraph(f"- {insight}", insight_style))
         story.append(Spacer(1, 0.08*inch))
     
-    # PERBANDINGAN
     if perbandingan_data:
         story.append(Paragraph(f"- Perbandingan {perbandingan_data['label']}", heading_style))
         comp_data = [
@@ -190,7 +175,6 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
         story.append(comp_table)
         story.append(Spacer(1, 0.08*inch))
     
-    # PENGELUARAN PER KATEGORI
     if data['pie_chart']:
         story.append(Paragraph("- Pengeluaran per Kategori", heading_style))
         kategori_data = [['Kategori', 'Nominal']]
@@ -219,7 +203,7 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
         story.append(kategori_table)
     
     # ============================================================
-    # HALAMAN 2: TOTAL PENGELUARAN HARIAN (jika ada)
+    # HALAMAN 2: TOTAL PENGELUARAN HARIAN
     # ============================================================
     if show_daily and daily_data:
         story.append(PageBreak())
@@ -256,26 +240,22 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
             ('BACKGROUND', (0, len(daily_table_data)-1), (-1, len(daily_table_data)-1), COLOR_GRAY_LIGHT),
         ]))
         story.append(daily_table)
-        story.append(Spacer(1, 0.12*inch))  # Spacer sebelum detail pengeluaran (jika digabung)
+        story.append(Spacer(1, 0.12*inch))
     
     # ============================================================
-    # DETEKSI ADA ATAU TIDAK DATA PEMASUKAN / INVESTASI / BUDGET (halaman 3)
+    # HALAMAN 3: DETAIL PEMASUKAN, INVESTASI, BUDGET (jika ada)
     # ============================================================
     has_income = bool(data['pemasukan'])
     has_invest = bool(data['investasi'])
     has_budget_page = show_budget and (data['budget'] or data['target'])
     has_page3_content = has_income or has_invest or has_budget_page
     
-    # ============================================================
-    # HALAMAN 3: DETAIL PEMASUKAN / INVESTASI / BUDGET (hanya jika ada konten)
-    # ============================================================
     if has_page3_content:
         story.append(PageBreak())
         col_widths_5col = [TABLE_WIDTH*0.08, TABLE_WIDTH*0.17, TABLE_WIDTH*0.17, TABLE_WIDTH*0.33, TABLE_WIDTH*0.25]
         col_widths_budget = [TABLE_WIDTH*0.18, TABLE_WIDTH*0.20, TABLE_WIDTH*0.20, TABLE_WIDTH*0.20, TABLE_WIDTH*0.22]
         col_widths_3col = [TABLE_WIDTH*0.35, TABLE_WIDTH*0.325, TABLE_WIDTH*0.325]
         
-        # DETAIL PEMASUKAN
         if has_income:
             story.append(Paragraph("- Detail Pemasukan", heading_style))
             pemasukan_data = [['#', 'Tanggal', 'Kategori', 'Item', 'Nominal']]
@@ -309,7 +289,6 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
             story.append(pemasukan_table)
             story.append(Spacer(1, 0.1*inch))
         
-        # DETAIL INVESTASI
         if has_invest:
             story.append(Paragraph("- Detail Investasi", heading_style))
             investasi_data = [['#', 'Tanggal', 'Kategori', 'Item', 'Nominal']]
@@ -342,44 +321,41 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
             ]))
             story.append(investasi_table)
             story.append(Spacer(1, 0.1*inch))
-
-
-
-
-
         
-        
-        # BUDGET & TARGET (hanya bulanan)
-        if data['budget']:
-    budget_data = [['Kategori', 'Budget', 'Realisasi', 'Sisa', 'Status']]
-    for item in data['budget']:
-        if item['budget'] > 0:  # ← hanya tampilkan jika budget > 0
-            status_text = '[OK]' if item['status'] == 'Aman' else '[!]'
-            budget_data.append([
-                item['kategori'],
-                format_rupiah(item['budget']),
-                format_rupiah(item['realisasi']),
-                format_rupiah(item['sisa']),
-                f"{status_text} {item['status']}"
-            ])
-    # Kalau cuma header doang (tidak ada data), skip
-    if len(budget_data) > 1:
-    # tampilkan tabel
-    budget_table = Table(budget_data, colWidths=col_widths_budget)
-    budget_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), COLOR_NAVY),
-        ('TEXTCOLOR', (0,0), (-1,0), COLOR_WHITE),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,-1), 7),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('BACKGROUND', (0,1), (-1,-1), COLOR_WHITE),
-        ('GRID', (0,0), (-1,-1), 0.3, COLOR_BLACK),
-        ('FONTSIZE', (0,1), (-1,-1), 7),
-    ]))
-    story.append(budget_table)
-    story.append(Spacer(1, 0.08*inch))
+        # BUDGET & TARGET (HANYA BULANAN)
+        if show_budget:
+            # Budget
+            if data['budget']:
+                story.append(Paragraph("- Budget & Target", heading_style))
+                budget_data = [['Kategori', 'Budget', 'Realisasi', 'Sisa', 'Status']]
+                for item in data['budget']:
+                    if item['budget'] > 0:  # Tampilkan hanya jika budget diatur
+                        status_text = '[OK]' if item['status'] == 'Aman' else '[!]'
+                        budget_data.append([
+                            item['kategori'],
+                            format_rupiah(item['budget']),
+                            format_rupiah(item['realisasi']),
+                            format_rupiah(item['sisa']),
+                            f"{status_text} {item['status']}"
+                        ])
+                # Jika ada data (tidak cuma header)
+                if len(budget_data) > 1:
+                    budget_table = Table(budget_data, colWidths=col_widths_budget)
+                    budget_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0,0), (-1,0), COLOR_NAVY),
+                        ('TEXTCOLOR', (0,0), (-1,0), COLOR_WHITE),
+                        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0,0), (-1,-1), 7),
+                        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                        ('BACKGROUND', (0,1), (-1,-1), COLOR_WHITE),
+                        ('GRID', (0,0), (-1,-1), 0.3, COLOR_BLACK),
+                        ('FONTSIZE', (0,1), (-1,-1), 7),
+                    ]))
+                    story.append(budget_table)
+                    story.append(Spacer(1, 0.08*inch))
             
+            # Target
             if data['target']:
                 story.append(Paragraph("- Target", heading_style))
                 target_data = [['Target', 'Realisasi', 'Sisa']]
@@ -400,15 +376,12 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
                 story.append(target_table)
     
     # ============================================================
-    # DETAIL PENGELUARAN (DITARUH SESUAI KONDISI)
+    # DETAIL PENGELUARAN (HALAMAN TERPISAH)
     # ============================================================
     if data['pengeluaran']:
-        # Jika tidak ada konten halaman 3, dan (ada daily data atau ini harian),
-        # maka Detail Pengeluaran ditaruh di halaman yang sama (tanpa PageBreak)
+        # Jika tidak ada halaman 3, dan (ada daily atau harian), gabung di halaman yang sama
         should_append_here = (not has_page3_content) and (show_daily and daily_data)
-        
         if not should_append_here:
-            # Kondisi lain: tambahkan PageBreak (karena ada halaman 3 atau tidak ada daily)
             story.append(PageBreak())
         
         story.append(Paragraph("- Detail Pengeluaran", heading_style))
