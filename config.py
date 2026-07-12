@@ -20,7 +20,12 @@ DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 
 # Database
-DATABASE_FILE = os.getenv("DATABASE_FILE", "finance.db")
+# ===== DATABASE =====
+import os
+if os.getenv("RAILWAY_ENVIRONMENT"):
+    DATABASE_FILE = os.path.join("/app/data", "finance.db")
+else:
+    DATABASE_FILE = os.getenv("DATABASE_FILE", "finance.db")
 print(f"📁 Database file: {DATABASE_FILE}")
 
 # Report settings
