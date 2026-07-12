@@ -364,27 +364,21 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
             ])
     # Kalau cuma header doang (tidak ada data), skip
     if len(budget_data) > 1:
-        # tampilkan tabel
-
-
-
-
-        
-                    ])
-                budget_table = Table(budget_data, colWidths=col_widths_budget)
-                budget_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0,0), (-1,0), COLOR_NAVY),
-                    ('TEXTCOLOR', (0,0), (-1,0), COLOR_WHITE),
-                    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0,0), (-1,-1), 7),
-                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                    ('BACKGROUND', (0,1), (-1,-1), COLOR_WHITE),
-                    ('GRID', (0,0), (-1,-1), 0.3, COLOR_BLACK),
-                    ('FONTSIZE', (0,1), (-1,-1), 7),
-                ]))
-                story.append(budget_table)
-                story.append(Spacer(1, 0.08*inch))
+    # tampilkan tabel
+    budget_table = Table(budget_data, colWidths=col_widths_budget)
+    budget_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), COLOR_NAVY),
+        ('TEXTCOLOR', (0,0), (-1,0), COLOR_WHITE),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 7),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('BACKGROUND', (0,1), (-1,-1), COLOR_WHITE),
+        ('GRID', (0,0), (-1,-1), 0.3, COLOR_BLACK),
+        ('FONTSIZE', (0,1), (-1,-1), 7),
+    ]))
+    story.append(budget_table)
+    story.append(Spacer(1, 0.08*inch))
             
             if data['target']:
                 story.append(Paragraph("- Target", heading_style))
