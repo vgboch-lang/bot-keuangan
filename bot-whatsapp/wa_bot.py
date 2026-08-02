@@ -362,14 +362,19 @@ def main():
     # biar QR tampil dan bisa di-scan langsung (WA blokir QR di headless).
     headless = os.getenv('WA_HEADLESS', '0').strip().lower() in ('1', 'true', 'yes')
 
-    # Lokal (headless=0) → pakai Google Chrome yang terpasang.
-    # Railway (headless=1) → tidak ada Chrome, pakai Chromium bawaan Playwright.
+    # Lokal non-headless → pakai Google Chrome yang terpasang.
+    # Railway → tidak ada Chrome; pakai Chromium bawaan Playwright.
+    # WhatsApp Web TIDAK menampilkan QR di mode headless, jadi di Railway
+    # kita jalankan "berjendela" di atas layar virtual (xvfb) → pakai WA_HEADLESS=0.
     launch_kwargs = {
         'headless': headless,
-        'args': ['--no-sandbox'],
+        'args': ['--no-sandbox', '--disable-dev-shm-usage'],
         'viewport': {'width': 1280, 'height': 720},
+        # User-Agent Chrome terbaru agar WhatsApp Web tidak menganggap browser lama
+        'user_agent': ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                       '(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36'),
     }
-    if not headless:
+    if not headless and not os.getenv('RAILWAY_ENVIRONMENT'):
         launch_kwargs['channel'] = 'chrome'
 
     with sync_playwright() as p:
