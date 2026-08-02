@@ -1,4 +1,7 @@
 # ===== JANGAN PERNAH COMMIT (privasi & keamanan) =====
+# Bot WhatsApp dihapus dari GitHub — jalan lokal saja (biar tidak ikut build Railway)
+bot-whatsapp/
+
 # Session login WhatsApp Web — SENSITIF
 bot-whatsapp/wa_session/
 wa_session/
