@@ -35,6 +35,9 @@ TIMEZONE = "Asia/Jakarta"
 # Akses kontrol (opsional): isi OWNER_ID dengan user_id Telegram kamu untuk mengaktifkan whitelist
 OWNER_ID = int(os.getenv("OWNER_ID", "0") or 0)
 
+# Masa percobaan untuk user baru (hari)
+TRIAL_DAYS = int(os.getenv("TRIAL_DAYS", "10") or 10)
+
 # ===================================================================
 # ============ DATABASE KEYWORD SUPER LENGKAP ======================
 # ===================================================================

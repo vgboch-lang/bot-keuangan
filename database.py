@@ -115,6 +115,15 @@ def init_db():
         )
     ''')
 
+    # 7. Tabel trial users (masa percobaan)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS trial_users (
+            user_id INTEGER PRIMARY KEY,
+            started_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL
+        )
+    ''')
+
     conn.commit()
 
     # ===== SEED KEYWORD =====
@@ -512,7 +521,7 @@ def is_owner(user_id: int) -> bool:
     return bool(OWNER_ID) and user_id == OWNER_ID
 
 def is_authorized(user_id: int) -> bool:
-    """Cek akses user. Jika OWNER_ID belum diset, semua boleh (fitur nonaktif)."""
+    """Cek akses: owner / whitelist / trial aktif. Jika OWNER_ID belum diset, semua boleh."""
     from config import OWNER_ID
     if not OWNER_ID:
         return True
@@ -522,7 +531,62 @@ def is_authorized(user_id: int) -> bool:
     try:
         cursor = conn.cursor()
         cursor.execute('SELECT 1 FROM authorized_users WHERE user_id = ?', (user_id,))
+        if cursor.fetchone():
+            return True
+        cursor.execute('SELECT expires_at FROM trial_users WHERE user_id = ?', (user_id,))
+        row = cursor.fetchone()
+        if row and datetime.fromisoformat(row['expires_at']) > datetime.now():
+            return True
+        return False
+    finally:
+        conn.close()
+
+def is_owner_or_approved(user_id: int) -> bool:
+    """Owner atau sudah di whitelist (bukan trial)"""
+    from config import OWNER_ID
+    if not OWNER_ID:
+        return True  # fitur off
+    if user_id == OWNER_ID:
+        return True
+    conn = get_db()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('SELECT 1 FROM authorized_users WHERE user_id = ?', (user_id,))
         return cursor.fetchone() is not None
+    finally:
+        conn.close()
+
+def has_trial(user_id: int) -> bool:
+    conn = get_db()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('SELECT 1 FROM trial_users WHERE user_id = ?', (user_id,))
+        return cursor.fetchone() is not None
+    finally:
+        conn.close()
+
+def start_trial(user_id: int, days: int = 10):
+    """Mulai masa percobaan untuk user baru"""
+    now = datetime.now()
+    expires = now + timedelta(days=days)
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT OR REPLACE INTO trial_users (user_id, started_at, expires_at)
+        VALUES (?, ?, ?)
+    ''', (user_id, now.isoformat(), expires.isoformat()))
+    conn.commit()
+    conn.close()
+
+def is_trial_active(user_id: int) -> bool:
+    conn = get_db()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('SELECT expires_at FROM trial_users WHERE user_id = ?', (user_id,))
+        row = cursor.fetchone()
+        if not row:
+            return False
+        return datetime.fromisoformat(row['expires_at']) > datetime.now()
     finally:
         conn.close()
 

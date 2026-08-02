@@ -13,8 +13,9 @@ from database import (
     update_transaction, delete_transaction, get_summary,
     get_user_settings, update_user_setting,
     get_transaction_history, get_all_users, get_transaction_months,
-    is_authorized, is_owner, add_authorized_user, remove_authorized_user,
-    get_authorized_users
+    is_owner, add_authorized_user, remove_authorized_user,
+    get_authorized_users, is_owner_or_approved,
+    has_trial, start_trial, is_trial_active
 )
 from keyboards import (
     get_main_keyboard, get_start_menu, get_after_add_menu,
@@ -25,9 +26,47 @@ from keyboards import (
 from parser import parse_transaction
 from report import generate_pdf_report
 from utils import format_rupiah, get_date_range, format_date
-from config import CATEGORY_DISPLAY
+from config import CATEGORY_DISPLAY, TRIAL_DAYS
 
 logger = logging.getLogger(__name__)
+
+# ==================== PANDUAN LENGKAP ====================
+
+HELP_TEXT = (
+    "❓ <b>Panduan Lengkap Bot Catat Keuangan</b>\n\n"
+    "📝 <b>1. Mencatat Transaksi</b>\n"
+    "Kirim chat bebas, contoh:\n"
+    "• 'makan siang 25rb' → pengeluaran\n"
+    "• 'gaji 4jt' → pemasukan\n"
+    "• 'gojek 15rb dan kopi 5rb' → 2 transaksi sekaligus\n\n"
+    "🧭 <b>2. Tombol di bawah (Reply Keyboard)</b>\n"
+    "• 📝 Catat Cepat → panduan mencatat\n"
+    "• 💰 Pemasukan → catat pemasukan\n"
+    "• 📊 Rekap Harian → laporan PDF hari ini\n"
+    "• 📋 Pengeluaran Hari Ini → daftar transaksi hari ini\n"
+    "• 📈 Rekap Mingguan → laporan PDF minggu ini\n"
+    "• 📉 Rekap Bulanan → laporan PDF bulan ini\n"
+    "• 📅 Bulan Berjalan → laporan tgl 1 sampai hari ini\n"
+    "• ✏️ Edit Transaksi → edit/hapus transaksi hari ini\n"
+    "• 📁 Riwayat → unduh PDF bulan-bulan sebelumnya\n"
+    "• ⚙️ Settings → budget, target, waktu laporan otomatis\n"
+    "• ❓ Bantuan → panduan ini\n\n"
+    "💬 <b>3. Perintah Slash</b>\n"
+    "• /rekap 01/07/2026 12/07/2026 → rekap tanggal tertentu\n"
+    "• /edit → edit transaksi\n"
+    "• /review → rekap hari ini\n"
+    "• /myid → lihat User ID kamu\n\n"
+    "🧠 <b>4. Bot Bisa Belajar</b>\n"
+    "Kalau kategori salah, edit manual lewat ✏️ Edit Transaksi.\n"
+    "Bot akan mengingat & memakai kategori itu untuk kata serupa.\n\n"
+    "⚙️ <b>5. Settings</b>\n"
+    "• ⏰ Atur Waktu Laporan → laporan otomatis harian\n"
+    "• 💰 Atur Budget Bulanan → batas pengeluaran per kategori\n"
+    "• 💵 Atur Target Pemasukan → target bulanan\n\n"
+    "📁 <b>6. Riwayat</b>\n"
+    "Buka 📁 Riwayat → pilih bulan → bot kirim laporan PDF bulan itu.\n\n"
+    "💡 <b>Tips:</b> Semua data tersimpan otomatis di database.\n"
+)
 
 # ==================== AKSES KONTROL ====================
 
@@ -72,29 +111,57 @@ async def notify_owner(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Gagal notifikasi owner: {e}")
 
+async def send_trial_welcome(update: Update):
+    """Sambutan + panduan untuk user baru (masa percobaan)"""
+    chat = update.effective_chat
+    if not chat:
+        return
+    text = (
+        f"🎉 Selamat datang! Kamu mendapat <b>masa percobaan {TRIAL_DAYS} hari</b>.\n"
+        f"Setelah itu kamu perlu izin dari pemilik bot untuk terus memakai.\n\n"
+        f"{HELP_TEXT}"
+    )
+    await chat.send_message(text, parse_mode=ParseMode.HTML)
+
 def authorized_only(func):
-    """Batasi handler agar hanya bisa dipakai user yang diizinkan"""
+    """Batasi handler: owner/approved/trial aktif boleh pakai; user baru dapat trial"""
     from functools import wraps
 
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not update.effective_user or not is_authorized(update.effective_user.id):
-            if update.callback_query:
-                try:
-                    await update.callback_query.answer()
-                except:
-                    pass
-            chat = update.effective_chat
-            if chat:
-                await chat.send_message(
-                    f"⛔ Kamu tidak punya akses ke bot ini.\n\n"
-                    f"👤 User ID kamu: <code>{update.effective_user.id}</code>\n"
-                    f"Permintaan aksesmu sudah dikirim ke pemilik bot.",
-                    parse_mode=ParseMode.HTML
-                )
-            await notify_owner(update, context)
+        if not update.effective_user:
             return
-        return await func(update, context)
+
+        # Owner / sudah di-approve (atau fitur off) → langsung boleh
+        if is_owner_or_approved(update.effective_user.id):
+            return await func(update, context)
+
+        # User baru (belum pernah) → mulai trial + tampilkan panduan
+        if not has_trial(update.effective_user.id):
+            start_trial(update.effective_user.id, TRIAL_DAYS)
+            await send_trial_welcome(update)
+            return await func(update, context)
+
+        # Trial masih aktif → boleh pakai
+        if is_trial_active(update.effective_user.id):
+            return await func(update, context)
+
+        # Trial habis → tolak + beri tahu pemilik
+        if update.callback_query:
+            try:
+                await update.callback_query.answer()
+            except:
+                pass
+        chat = update.effective_chat
+        if chat:
+            await chat.send_message(
+                f"⛔ Masa percobaanmu sudah habis.\n"
+                f"👤 User ID kamu: <code>{update.effective_user.id}</code>\n"
+                f"Permintaan akses sudah dikirim ke pemilik bot.",
+                parse_mode=ParseMode.HTML
+            )
+        await notify_owner(update, context)
+        return
 
     return wrapper
 
@@ -115,28 +182,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @authorized_only
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    help_text = """
-❓ <b>Panduan Penggunaan</b>
-
-📝 <b>Catat Transaksi:</b>
-Kirim pesan seperti:
-• "makan siang 25rb" → pengeluaran
-• "gaji 4jt" → pemasukan
-
-📊 <b>Lihat Laporan:</b>
-• Rekap Harian / Mingguan / Bulanan
-• Bulan Berjalan (dari tanggal 1 sampai hari ini)
-
-✏️ <b>Edit Transaksi:</b>
-• Pilih transaksi dari daftar hari ini
-• Edit item, kategori, atau nominal
-
-⚙️ <b>Settings:</b>
-• Ubah waktu rekap otomatis
-• Set budget per kategori
-• Target pemasukan
-    """
-    await update.message.reply_text(help_text, parse_mode=ParseMode.HTML, reply_markup=get_main_keyboard())
+    await update.message.reply_text(HELP_TEXT, parse_mode=ParseMode.HTML, reply_markup=get_main_keyboard())
 
 # ==================== ADMIN: AKSES USER ====================
 
@@ -1145,17 +1191,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ===== HELP =====
     elif data == "help":
         await query.edit_message_text(
-            "❓ <b>Panduan Penggunaan</b>\n\n"
-            "📝 <b>Catat Transaksi:</b>\n"
-            "Kirim chat bebas dengan format:\n"
-            "• 'makan siang 25rb' → pengeluaran\n"
-            "• 'gaji 4jt' → pemasukan\n\n"
-            "📊 <b>Lihat Laporan:</b>\n"
-            "Pilih menu Rekap Harian/Mingguan/Bulanan/Bulan Berjalan\n\n"
-            "✏️ <b>Edit Transaksi:</b>\n"
-            "Pilih transaksi dari daftar hari ini\n\n"
-            "⚙️ <b>Settings:</b>\n"
-            "Atur budget, target, dan waktu rekap",
+            HELP_TEXT,
             parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("↩️ Kembali", callback_data="back_to_previous")]
