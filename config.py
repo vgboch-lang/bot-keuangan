@@ -99,6 +99,40 @@ CATEGORY_KEYWORDS = {
         # China & Asia
         'dimsum', 'hakau', 'pao', 'bakpao', 'lumpia', 'kwetiau', 'bihun',
         
+        # Nama Slang / Singkatan
+        'nasgor', 'naskun', 'sego', 'sego goreng', 'sego pecel',
+        
+        # Nasi Khas Daerah
+        'nasi kebuli', 'nasi minyak', 'nasi megono', 'nasi jamblang', 'nasi lengko',
+        'nasi timbel', 'nasi tutug oncom', 'nasi jinggo', 'nasi campur bali',
+        
+        # Ayam & Unggas
+        'ayam bacem', 'ayam pop', 'ayam tangkap', 'ayam rica-rica', 'ayam kungpao',
+        'bebek madura', 'bebek kalasan', 'bebek peking',
+        
+        # Seafood
+        'rajungan', 'cumi goreng', 'udang goreng', 'kepiting soka', 'otak-otak',
+        'pindang', 'bandeng presto', 'ikan pepes', 'ikan kuah', 'ikan kembung',
+        
+        # Mie
+        'mie ayam bakso', 'mie jawa', 'mie tektek', 'mie gacoan', 'mie glagah',
+        'mie babat', 'mie kocok bandung', 'mie kuah', 'mie yamin', 'mie aceh',
+        
+        # Soto & Sup
+        'soto mie', 'soto padang', 'soto babat', 'sop iga sapi', 'sup ayam',
+        'sup jagung', 'sayur sop', 'sayur asem', 'sayur lodeh',
+        
+        # Sate & Lauk
+        'sate padang', 'sate madura', 'sate taichan', 'sate klatak', 'sate telur puyuh',
+        'tempe penyet', 'tahu penyet', 'tahu telur', 'pecel lele', 'sambal goreng',
+        
+        # Makanan Berat Lain
+        'ketupat', 'lemang', 'lontong opor', 'krengsengan', 'oseng-oseng', 'tumis',
+        'capcay', 'fu yung hai', 'rawon setan',
+        
+        # Fast Food
+        'wendys', 'a&w', 'burger king', 'subway', 'ramly burger', 'kentang goreng',
+        
         # Lainnya
         'makan', 'sarapan', 'makan siang', 'makan malam', 'makanan'
     ],
@@ -130,6 +164,17 @@ CATEGORY_KEYWORDS = {
         
         # Popcorn & Snack
         'popcorn', 'pop corn', 'snack', 'ciki', 'chiki',
+        
+        # Cireng, Seblak & Kekinian
+        'cireng', 'seblak', 'baso aci', 'mie lidi', 'tahu coklat', 'tahu mercon',
+        'pisang keju', 'pisang coklat', 'ubi cilembu', 'singkong goreng',
+        'jamur goreng', 'onion ring', 'chicken nugget', 'nugget', 'sosis',
+        'sosis bakar', 'corn dog', 'sempol', 'cilok kuah', 'basreng',
+        
+        # Roti & Kue Kekinian
+        'roti bakar', 'roti goreng', 'croffle', 'waffle', 'pancake', 'crepe',
+        'kue pukis', 'klepon', 'onde-onde', 'kue moci', 'lupis', 'brownies',
+        'cheesecake', 'cake', 'cookies',
         
         # Lainnya
         'jajan', 'jajanan'
@@ -173,6 +218,31 @@ CATEGORY_KEYWORDS = {
         # Alkohol
         'bir', 'anker', 'heineken', 'tuak', 'arak', 'alkohol',
         
+        # Teh & Es Tradisional
+        'es teh tarik', 'teh hangat', 'teh tubruk', 'es jeruk', 'es sirup',
+        'es degan', 'es kelapa muda', 'es cendol', 'es dawet', 'es cincau',
+        'es blewah', 'soda gembira',
+        
+        # Kopi Kekinian
+        'es kopi susu', 'kopi susu gula aren', 'kopi aren', 'espresso',
+        'americano', 'cappuccino', 'kopi senja', 'kopi nako',
+        
+        # Jus & Smoothie
+        'jus avokad', 'jus jambu', 'jus sirsak', 'jus semangka', 'jus pepaya',
+        'smoothies',
+        
+        # Susu & Minuman Kemasan
+        'susu murni', 'susu uht', 'milku', 'good day', 'cimory', 'ultra milk',
+        'indomilk', 'greenfields', 'nestle', 'cleo', 'amidis', 'crystaline',
+        
+        # Soda & Energy
+        'cola', 'sarsi', 'extra joss', 'kuku bima', 'hemaviton', 'red bull',
+        'monster', 'isoplus', 'pocari',
+        
+        # Bubble Tea & Kekinian
+        'brown sugar', 'pearl milk tea', 'thai milk tea', 'matcha latte', 'taro',
+        'eskul', 'redvelvet latte',
+        
         # Lainnya
         'minum', 'minuman'
     ],
@@ -187,6 +257,11 @@ CATEGORY_KEYWORDS = {
         # Rokok Elektronik / Vape
         'vape', 'pod', 'liquid', 'relx', 'rokok elektronik',
         'tembakau', 'linting', 'cerutu', 'cigar',
+        
+        # Merek Lain
+        'surya', 'surya 16', 'surya pro', 'dji sam soe', 'dji sam soe magnum',
+        'malboro', 'l.a. bold', 'u bold', 'rokok filter', 'rokok kretek',
+        'rokok menthol',
         
         # Aksesoris
         'korek', 'korek api', 'gas', 'korek gas', 'rokok'
@@ -216,6 +291,22 @@ CATEGORY_KEYWORDS = {
         # Ongkir & Paket
         'ongkir', 'kirim barang', 'paket', 'jne', 'jnt', 'pos', 'sicepat',
         'tiki', 'wahana', 'ninja express',
+        
+        # Ride Hailing
+        'gocar', 'grabcar', 'grabbike', 'maxim', 'in driver', 'ojek online',
+        'ojek pangkalan', 'taksi online',
+        
+        # Angkutan Umum
+        'kereta commuter', 'kci', 'lrt', 'mrt jakarta', 'mikrolet', 'metromini',
+        'kopaja',
+        
+        # BBM & Kendaraan
+        'pertamax turbo', 'shell', 'vivo', 'cuci motor', 'cuci mobil',
+        'ganti ban', 'servis kendaraan',
+        
+        # Jasa Kirim & Travel
+        'jasa kirim', 'jasa antar', 'shuttle', 'tiket kereta', 'tiket bus',
+        'tiket kapal',
         
         # Lainnya
         'transport', 'jalan', 'perjalanan', 'travel'
@@ -252,6 +343,22 @@ CATEGORY_KEYWORDS = {
         # Top Up & E-Wallet
         'topup', 'saldo', 'ewallet', 'gopay', 'ovo', 'shopeepay', 'spay',
         
+        # E-commerce & Online
+        'shopee', 'tokopedia', 'lazada', 'blibli', 'bukalapak', 'tiktok shop',
+        'e-commerce', 'belanja online', 'checkout', 'marketplace',
+        
+        # Fashion & Pakaian
+        'hoodie', 'sweater', 'kaos kaki', 'celana jeans', 'sneakers', 'gamis',
+        'hijab', 'cardigan',
+        
+        # Skincare & Kosmetik
+        'makeup', 'skincare', 'sunscreen', 'kosmetik', 'serum', 'masker wajah',
+        'moisturizer', 'toner', 'foundation', 'lipstik',
+        
+        # Rumah & Perabot
+        'perkakas', 'alat rumah', 'perabot', 'hiasan dinding', 'tanaman hias',
+        'pot', 'rak', 'lemari',
+        
         # Lainnya
         'belanja', 'beli', 'barang', 'keperluan'
     ],
@@ -277,6 +384,17 @@ CATEGORY_KEYWORDS = {
         
         # Sekolah & Kuliah
         'sekolah', 'spp', 'uang kuliah', 'ukt', 'pendaftaran',
+        
+        # Listrik & Utilitas
+        'pln', 'token pln', 'samsat', 'pajak', 'pbb',
+        
+        # Paylater & Pinjaman
+        'shopee paylater', 'spaylater', 'gopaylater', 'akulaku', 'kredivo',
+        'pinjol', 'pinjaman online',
+        
+        # Streaming & Langganan
+        'youtube premium', 'yt premium', 'disney+', 'vidio', 'iflix',
+        'berlangganan',
         
         # Lainnya
         'tagihan', 'bayar', 'administrasi', 'biaya admin', 'materai'
@@ -308,6 +426,18 @@ CATEGORY_KEYWORDS = {
         'pijat', 'spa', 'salon', 'potong rambut', 'haircut',
         'manicure', 'pedicure', 'facial',
         
+        # Game & In-game
+        'diamond', 'v-bucks', 'roblox', 'genshin', 'mobile legends',
+        'mlbb', 'free fire', 'pubg mobile', 'ps5', 'nintendo switch',
+        'game online',
+        
+        # Nonton & Event
+        'xxi', 'cgv', 'konser', 'festival musik', 'screening', 'nonton bareng',
+        
+        # Wisata & Rekreasi
+        'dufan', 'trans studio', 'kebun binatang', 'zoo', 'theme park',
+        'waterpark', 'camping', 'glamping',
+        
         # Lainnya
         'nongkrong', 'cafe', 'kopi darat', 'kencan', 'date',
         'hiburan', 'fun', 'refreshing'
@@ -338,6 +468,14 @@ CATEGORY_KEYWORDS = {
         'masker', 'handsanitizer', 'rapid test', 'antigen', 'swab',
         'pcr', 'vaksin', 'booster', 'imunisasi',
         
+        # Obat & Vitamin
+        'obat demam', 'obat maag', 'obat pusing', 'obat masuk angin',
+        'vitamin c', 'vitamin d', 'zinc',
+        
+        # Layanan Kesehatan
+        'cek kesehatan', 'medical check up', 'mcu', 'fisioterapi', 'terapi',
+        'konsultasi dokter', 'telemedicine', 'halodoc', 'alodokter',
+        
         # Lainnya
         'kesehatan', 'sehat', 'obat-obatan'
     ],
@@ -361,6 +499,18 @@ CATEGORY_KEYWORDS = {
         
         # Biaya Sekolah
         'uang kuliah', 'ukt', 'spp', 'pendaftaran', 'ospek',
+        
+        # Bimbel & Kursus
+        'bimbel', 'tutor', 'les privat', 'kursus online', 'kelas online',
+        'kelas bahasa', 'kursus bahasa', 'bootcamp',
+        
+        # Sekolah & Perlengkapan
+        'seragam', 'sepatu sekolah', 'uang saku', 'iuran sekolah', 'uang kas',
+        'ekstrakurikuler', 'pramuka', 'try out', 'ujian', 'utbk',
+        
+        # Buku & Alat Tulis
+        'materi', 'modul', 'binder', 'map', 'pulpen', 'pensil', 'spidol',
+        'penghapus',
         
         # Lainnya
         'pendidikan', 'belajar', 'les', 'sekolah'
@@ -392,6 +542,13 @@ CATEGORY_KEYWORDS = {
         # Endorsement
         'royalti', 'affiliate', 'sponsor', 'endorsement',
         
+        # Usaha & Dagang
+        'jualan', 'dagang', 'omzet', 'penjualan', 'hasil jualan', 'cuan',
+        
+        # Online & Lainnya
+        'cashback', 'refund', 'pengembalian', 'reimburse', 'angpao',
+        'transfer masuk', 'menang undian',
+        
         # Lainnya
         'pendapatan', 'penghasilan', 'income', 'pemasukan',
         'upah', 'honor', 'uang masuk'
@@ -402,6 +559,7 @@ CATEGORY_KEYWORDS = {
         'lainnya', 'lain', 'dll', 'dsb', 'lain-lain',
         'tak terduga', 'mendadak', 'dadakan',
         'donasi', 'amal', 'zakat', 'infak', 'sedekah', 'wakaf',
+        'qurban', 'kurban', 'denda', 'tilang', 'sumbangan', 'iuran',
         'keperluan lain', 'biaya lain', 'pengeluaran lain'
     ]
 }

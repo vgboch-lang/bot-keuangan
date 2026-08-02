@@ -526,6 +526,23 @@ def save_keyword(keyword: str, type_: str, category: str):
     finally:
         conn.close()
 
+def save_keyword_learn(keyword: str, type_: str, category: str):
+    """Simpan/pelajari keyword → kategori (upsert, menimpa mapping lama)"""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            INSERT INTO category_keywords (type, category, keyword)
+            VALUES (?, ?, ?)
+            ON CONFLICT(keyword) DO UPDATE SET type = excluded.type, category = excluded.category
+        ''', (type_, category, keyword.lower()))
+        conn.commit()
+    except:
+        pass
+    finally:
+        conn.close()
+
 # ==================== OPTIMIZED REPORT DATA (1 KONEKSI) ====================
 
 def get_report_data_optimized(user_id: int, start_date: str, end_date: str) -> Dict:

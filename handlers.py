@@ -2,6 +2,7 @@ import os
 import re
 import calendar
 import logging
+from typing import Optional
 from datetime import datetime, timedelta, date
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -140,6 +141,12 @@ async def generate_report(update: Update, context: ContextTypes.DEFAULT_TYPE, pe
                 reply_markup=get_after_report_menu(visible=False)
             )
     
+    # Kirim daftar transaksi di chat (khusus laporan harian)
+    if period == 'today':
+        text_list = format_today_transactions(user_id)
+        if text_list:
+            await update.effective_chat.send_message(text_list, parse_mode=ParseMode.HTML)
+    
     # Reply keyboard
     if is_callback:
         await update.effective_chat.send_message(
@@ -157,6 +164,76 @@ async def generate_report(update: Update, context: ContextTypes.DEFAULT_TYPE, pe
         os.remove(filename)
     except:
         pass
+
+# ==================== TRANSAKSI HARI INI (DI CHAT) ====================
+
+def format_today_transactions(user_id: int) -> Optional[str]:
+    """Format daftar transaksi hari ini (pengeluaran + pemasukan) untuk chat"""
+    today = datetime.now().date().isoformat()
+    transactions = get_transactions(user_id, today, today)
+
+    if not transactions:
+        return None
+
+    date_label = datetime.now().strftime('%d %B %Y')
+    lines = [f"📋 <b>Pengeluaran Hari Ini</b> — {date_label}\n"]
+
+    total_expense = 0
+    total_income = 0
+    shown = 0
+    max_items = 20
+
+    for t in transactions:
+        if t['type'] == 'investment':
+            continue  # fitur investasi sudah dihapus
+        if shown >= max_items:
+            break
+        cat = CATEGORY_DISPLAY.get(t['category'], t['category'].capitalize())
+        if t['type'] == 'income':
+            total_income += t['amount']
+            lines.append(f"💰 {t['item']} <i>({cat})</i> — {format_rupiah(t['amount'])}")
+        else:
+            total_expense += t['amount']
+            lines.append(f"💸 {t['item']} <i>({cat})</i> — {format_rupiah(t['amount'])}")
+        shown += 1
+
+    active_count = len([t for t in transactions if t['type'] != 'investment'])
+    remaining = active_count - shown
+    if remaining > 0:
+        lines.append(f"\n…dan {remaining} transaksi lainnya")
+
+    lines.append("")
+    lines.append(f"Total Pengeluaran: {format_rupiah(total_expense)}")
+    lines.append(f"Total Pemasukan: {format_rupiah(total_income)}")
+    return "\n".join(lines)
+
+async def show_today_transactions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Kirim daftar transaksi hari ini ke chat (dari tombol)"""
+    user_id = update.effective_user.id
+    text = format_today_transactions(user_id)
+    if not text:
+        await update.message.reply_text(
+            "📭 Belum ada transaksi hari ini.",
+            reply_markup=get_main_keyboard()
+        )
+        return
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+
+# ==================== BELAJAR (AUTO-LEARNING KATEGORI) ====================
+
+def learn_from_item(item: str, category: str):
+    """Pelajari item & kata-katanya → kategori, agar deteksi otomatis ke depannya benar"""
+    from database import save_keyword_learn
+
+    type_ = 'income' if category == 'income' else 'expense'
+    item = (item or '').lower().strip()
+    if not item:
+        return
+
+    save_keyword_learn(item, type_, category)
+    for word in item.split():
+        if len(word) > 2:
+            save_keyword_learn(word, type_, category)
 
 # ==================== HANDLE MESSAGE ====================
 
@@ -247,7 +324,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    elif text == " Rekap Harian":
+    elif text == "📋 Pengeluaran Hari Ini":
+        await show_today_transactions(update, context)
+        return
+    
+    elif text == "📊 Rekap Harian":
         await generate_report(update, context, "today")
         return
     
@@ -736,9 +817,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         old_data = get_transaction_by_id(user_id, trans_id)
         if old_data:
             update_transaction(user_id, trans_id, 'category', category, old_data['category'])
+            # Belajar: simpan mapping keyword → kategori agar otomatis ke depannya
+            learn_from_item(old_data['item'], category)
             # Kembali ke detail transaksi
             await query.edit_message_text(
-                f"✅ Kategori diubah menjadi {CATEGORY_DISPLAY.get(category, category)}",
+                f"✅ Kategori diubah menjadi {CATEGORY_DISPLAY.get(category, category)}\n🧠 Bot sudah belajar, lain kali otomatis.",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("↩️ Kembali", callback_data=f"back_to_edit_{trans_id}")]
                 ])

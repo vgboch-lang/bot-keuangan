@@ -6,10 +6,11 @@ def get_main_keyboard():
     """Keyboard utama yang selalu muncul di bawah (2 kolom)"""
     keyboard = [
         [KeyboardButton("📝 Catat Cepat"), KeyboardButton("💰 Pemasukan")],
-        [KeyboardButton("� Rekap Harian"), KeyboardButton("📈 Rekap Mingguan")],
-        [KeyboardButton("📉 Rekap Bulanan"), KeyboardButton("📅 Bulan Berjalan")],
-        [KeyboardButton("✏️ Edit Transaksi"), KeyboardButton("📁 Riwayat")],
-        [KeyboardButton("⚙️ Settings"), KeyboardButton("❓ Bantuan")]
+        [KeyboardButton("📊 Rekap Harian"), KeyboardButton("📋 Pengeluaran Hari Ini")],
+        [KeyboardButton("📈 Rekap Mingguan"), KeyboardButton("📉 Rekap Bulanan")],
+        [KeyboardButton("📅 Bulan Berjalan"), KeyboardButton("✏️ Edit Transaksi")],
+        [KeyboardButton("📁 Riwayat"), KeyboardButton("⚙️ Settings")],
+        [KeyboardButton("❓ Bantuan")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
