@@ -391,7 +391,10 @@ def main():
     # kita jalankan "berjendela" di atas layar virtual (xvfb) → pakai WA_HEADLESS=0.
     launch_kwargs = {
         'headless': headless,
-        'args': ['--no-sandbox', '--disable-dev-shm-usage'],
+        # --disable-blink-features=AutomationControlled → sembunyikan tanda automation
+        # agar WhatsApp Web menampilkan QR (bukan halaman "browser tidak didukung").
+        'args': ['--no-sandbox', '--disable-dev-shm-usage',
+                 '--disable-blink-features=AutomationControlled'],
         'viewport': {'width': 1280, 'height': 720},
         # User-Agent Chrome terbaru agar WhatsApp Web tidak menganggap browser lama
         'user_agent': ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
@@ -402,6 +405,9 @@ def main():
 
     with sync_playwright() as p:
         context = p.chromium.launch_persistent_context(SESSION_DIR, **launch_kwargs)
+        # Sembunyikan navigator.webdriver (tanda automation) di semua halaman
+        context.add_init_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
         page = context.pages[0] if context.pages else context.new_page()
         page.goto('https://web.whatsapp.com')
 
