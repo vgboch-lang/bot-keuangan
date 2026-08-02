@@ -12,7 +12,9 @@ from database import (
     save_transaction, get_transactions, get_transaction_by_id,
     update_transaction, delete_transaction, get_summary,
     get_user_settings, update_user_setting,
-    get_transaction_history, get_all_users, get_transaction_months
+    get_transaction_history, get_all_users, get_transaction_months,
+    is_authorized, is_owner, add_authorized_user, remove_authorized_user,
+    get_authorized_users
 )
 from keyboards import (
     get_main_keyboard, get_start_menu, get_after_add_menu,
@@ -27,8 +29,78 @@ from config import CATEGORY_DISPLAY
 
 logger = logging.getLogger(__name__)
 
+# ==================== AKSES KONTROL ====================
+
+_NOTIFIED_OWNER = set()  # dedup notifikasi ke pemilik (per proses)
+
+async def notify_owner(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Kirim notifikasi ke pemilik + tombol izinkan/tolak saat ada user baru"""
+    from config import OWNER_ID
+    if not OWNER_ID:
+        return
+
+    user = update.effective_user
+    if not user:
+        return
+    uid = user.id
+    if uid in _NOTIFIED_OWNER:
+        return
+    _NOTIFIED_OWNER.add(uid)
+
+    name = (user.first_name or '').strip() or 'Tanpa nama'
+    username = user.username or ''
+    uname = f'@{username}' if username else '-'
+
+    text = (
+        f"🆕 <b>Ada yang mau pakai bot</b>\n\n"
+        f"👤 Nama: {name}\n"
+        f"🆔 User ID: <code>{uid}</code>\n"
+        f"🔖 Username: {uname}\n\n"
+        f"Pilih aksi:"
+    )
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Izinkan", callback_data=f"approve_{uid}"),
+            InlineKeyboardButton("❌ Tolak", callback_data=f"deny_{uid}"),
+        ]
+    ])
+    try:
+        await context.bot.send_message(
+            chat_id=OWNER_ID, text=text,
+            parse_mode=ParseMode.HTML, reply_markup=keyboard
+        )
+    except Exception as e:
+        logger.error(f"Gagal notifikasi owner: {e}")
+
+def authorized_only(func):
+    """Batasi handler agar hanya bisa dipakai user yang diizinkan"""
+    from functools import wraps
+
+    @wraps(func)
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not update.effective_user or not is_authorized(update.effective_user.id):
+            if update.callback_query:
+                try:
+                    await update.callback_query.answer()
+                except:
+                    pass
+            chat = update.effective_chat
+            if chat:
+                await chat.send_message(
+                    f"⛔ Kamu tidak punya akses ke bot ini.\n\n"
+                    f"👤 User ID kamu: <code>{update.effective_user.id}</code>\n"
+                    f"Permintaan aksesmu sudah dikirim ke pemilik bot.",
+                    parse_mode=ParseMode.HTML
+                )
+            await notify_owner(update, context)
+            return
+        return await func(update, context)
+
+    return wrapper
+
 # ==================== START & HELP ====================
 
+@authorized_only
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await update.message.reply_text(
@@ -41,6 +113,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_start_menu(visible=True)
     )
 
+@authorized_only
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = """
 ❓ <b>Panduan Penggunaan</b>
@@ -64,6 +137,60 @@ Kirim pesan seperti:
 • Target pemasukan
     """
     await update.message.reply_text(help_text, parse_mode=ParseMode.HTML, reply_markup=get_main_keyboard())
+
+# ==================== ADMIN: AKSES USER ====================
+
+async def allow_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not is_owner(user_id):
+        await update.message.reply_text("⛔ Perintah ini khusus pemilik bot.")
+        return
+    if not context.args:
+        await update.message.reply_text("📝 Format: /allow <user_id>\nContoh: /allow 123456789")
+        return
+    try:
+        target = int(context.args[0].strip())
+    except:
+        await update.message.reply_text("❌ User ID tidak valid.")
+        return
+    add_authorized_user(target)
+    await update.message.reply_text(
+        f"✅ User <code>{target}</code> ditambahkan ke daftar izin.",
+        parse_mode=ParseMode.HTML
+    )
+
+async def deny_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not is_owner(user_id):
+        await update.message.reply_text("⛔ Perintah ini khusus pemilik bot.")
+        return
+    if not context.args:
+        await update.message.reply_text("📝 Format: /deny <user_id>\nContoh: /deny 123456789")
+        return
+    try:
+        target = int(context.args[0].strip())
+    except:
+        await update.message.reply_text("❌ User ID tidak valid.")
+        return
+    remove_authorized_user(target)
+    await update.message.reply_text(
+        f"🗑️ User <code>{target}</code> dihapus dari daftar izin.",
+        parse_mode=ParseMode.HTML
+    )
+
+async def users_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not is_owner(user_id):
+        await update.message.reply_text("⛔ Perintah ini khusus pemilik bot.")
+        return
+    users = get_authorized_users()
+    if not users:
+        await update.message.reply_text("📋 Belum ada user yang diizinkan selain pemilik.")
+        return
+    text = "📋 <b>Daftar User yang Diizinkan:</b>\n\n"
+    for u in users:
+        text += f"• <code>{u}</code>\n"
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
 # ==================== GENERATE REPORT (UNIVERSAL) ====================
 
@@ -237,6 +364,7 @@ def learn_from_item(item: str, category: str):
 
 # ==================== HANDLE MESSAGE ====================
 
+@authorized_only
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text
@@ -650,6 +778,7 @@ async def toggle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ==================== HANDLE CALLBACK ====================
 
+@authorized_only
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -690,6 +819,25 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🏠 <b>Menu Utama</b>\n\nPilih menu di bawah:",
             parse_mode=ParseMode.HTML,
             reply_markup=get_start_menu(visible=True)
+        )
+        return
+    
+    # ===== APPROVE / DENY (dari notifikasi pemilik) =====
+    elif data.startswith("approve_"):
+        target = int(data.replace("approve_", ""))
+        add_authorized_user(target)
+        await query.edit_message_text(
+            f"✅ User <code>{target}</code> diizinkan memakai bot.",
+            parse_mode=ParseMode.HTML
+        )
+        return
+    
+    elif data.startswith("deny_"):
+        target = int(data.replace("deny_", ""))
+        remove_authorized_user(target)
+        await query.edit_message_text(
+            f"❌ Akses user <code>{target}</code> ditolak.",
+            parse_mode=ParseMode.HTML
         )
         return
     

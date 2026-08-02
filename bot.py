@@ -10,7 +10,8 @@ from database import init_db
 from keyboards import get_main_keyboard
 from handlers import (
     start_command, help_command, handle_message, handle_callback,
-    auto_report, generate_report
+    auto_report, generate_report, allow_command, deny_command, users_command,
+    authorized_only
 )
 from utils import format_date
 
@@ -35,8 +36,20 @@ def main():
     # Add handlers
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("allow", allow_command))
+    application.add_handler(CommandHandler("deny", deny_command))
+    application.add_handler(CommandHandler("users", users_command))
+    
+    # Command: myid (lihat user id sendiri, tidak butuh izin)
+    async def myid_command(update, context):
+        await update.message.reply_text(
+            f"👤 User ID kamu: <code>{update.effective_user.id}</code>",
+            parse_mode=ParseMode.HTML
+        )
+    application.add_handler(CommandHandler("myid", myid_command))
     
     # Command: rekap custom
+    @authorized_only
     async def rekap_command(update, context):
         args = context.args
         if len(args) >= 2:
@@ -54,6 +67,7 @@ def main():
     application.add_handler(CommandHandler("rekap", rekap_command))
     
     # Command: edit
+    @authorized_only
     async def edit_command(update, context):
         from handlers import show_edit_menu
         await show_edit_menu(update, context)
@@ -61,6 +75,7 @@ def main():
     application.add_handler(CommandHandler("edit", edit_command))
     
     # Command: review
+    @authorized_only
     async def review_command(update, context):
         today = datetime.now().date()
         await generate_report(update, context, "today")

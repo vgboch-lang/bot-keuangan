@@ -107,6 +107,14 @@ def init_db():
         )
     ''')
 
+    # 6. Tabel authorized users (whitelist akses)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS authorized_users (
+            user_id INTEGER PRIMARY KEY,
+            added_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
     conn.commit()
 
     # ===== SEED KEYWORD =====
@@ -494,6 +502,51 @@ def get_transaction_months(user_id: int) -> List[str]:
     rows = cursor.fetchall()
     conn.close()
     return [row['month'] for row in rows]
+
+
+# ==================== AKSES KONTROL ====================
+
+def is_owner(user_id: int) -> bool:
+    """Cek apakah user adalah pemilik bot"""
+    from config import OWNER_ID
+    return bool(OWNER_ID) and user_id == OWNER_ID
+
+def is_authorized(user_id: int) -> bool:
+    """Cek akses user. Jika OWNER_ID belum diset, semua boleh (fitur nonaktif)."""
+    from config import OWNER_ID
+    if not OWNER_ID:
+        return True
+    if user_id == OWNER_ID:
+        return True
+    conn = get_db()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('SELECT 1 FROM authorized_users WHERE user_id = ?', (user_id,))
+        return cursor.fetchone() is not None
+    finally:
+        conn.close()
+
+def add_authorized_user(user_id: int):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('INSERT OR IGNORE INTO authorized_users (user_id) VALUES (?)', (user_id,))
+    conn.commit()
+    conn.close()
+
+def remove_authorized_user(user_id: int):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM authorized_users WHERE user_id = ?', (user_id,))
+    conn.commit()
+    conn.close()
+
+def get_authorized_users() -> List[int]:
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id FROM authorized_users ORDER BY added_at')
+    rows = cursor.fetchall()
+    conn.close()
+    return [row['user_id'] for row in rows]
 
 # ==================== KEYWORD FUNCTIONS ====================
 
