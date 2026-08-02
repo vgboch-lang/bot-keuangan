@@ -183,12 +183,12 @@ class _QRFileHandler(SimpleHTTPRequestHandler):
 
 
 def start_qr_server(qr_path):
-    """Sajikan file QR lewat HTTP (lokal / publik di Railway)."""
+    """Sajikan file QR lewat HTTP (lokal / publik di Railway). Bind 0.0.0.0 agar
+    bisa dijangkau proxy Railway dari luar container."""
     d = os.path.dirname(qr_path)
     handler = functools.partial(_QRFileHandler, directory=d)
-    host = '0.0.0.0' if os.getenv('RAILWAY_ENVIRONMENT') else '127.0.0.1'
-    server = HTTPServer((host, 8787), handler)
-    print(f"🌐 Buka / unduh QR: http://{host}:8787/qr_login.png")
+    server = HTTPServer(('0.0.0.0', 8787), handler)
+    print(f"🌐 Buka / unduh QR: http://0.0.0.0:8787/qr_login.png")
     server.serve_forever()
 
 
