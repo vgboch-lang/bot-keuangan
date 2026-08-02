@@ -6,9 +6,9 @@ def get_main_keyboard():
     """Keyboard utama yang selalu muncul di bawah (2 kolom)"""
     keyboard = [
         [KeyboardButton("📝 Catat Cepat"), KeyboardButton("💰 Pemasukan")],
-        [KeyboardButton("📈 Investasi"), KeyboardButton("📊 Rekap Harian")],
-        [KeyboardButton("📈 Rekap Mingguan"), KeyboardButton("📉 Rekap Bulanan")],
-        [KeyboardButton("📅 Bulan Berjalan"), KeyboardButton("✏️ Edit Transaksi")],
+        [KeyboardButton("� Rekap Harian"), KeyboardButton("📈 Rekap Mingguan")],
+        [KeyboardButton("📉 Rekap Bulanan"), KeyboardButton("📅 Bulan Berjalan")],
+        [KeyboardButton("✏️ Edit Transaksi"), KeyboardButton("📁 Riwayat")],
         [KeyboardButton("⚙️ Settings"), KeyboardButton("❓ Bantuan")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -21,15 +21,14 @@ def get_start_menu(visible: bool = True):
         keyboard = [
             [InlineKeyboardButton("📝 Catat Cepat", callback_data="quick_add"), 
              InlineKeyboardButton("💰 Pemasukan", callback_data="income_add")],
-            [InlineKeyboardButton("📈 Investasi", callback_data="investment_add"), 
-             InlineKeyboardButton("📊 Rekap Harian", callback_data="report_today")],
-            [InlineKeyboardButton("📈 Rekap Mingguan", callback_data="report_week"), 
-             InlineKeyboardButton("📉 Rekap Bulanan", callback_data="report_month")],
-            [InlineKeyboardButton("📅 Bulan Berjalan", callback_data="report_month_to_date"), 
-             InlineKeyboardButton("✏️ Edit Transaksi", callback_data="edit_menu")],
-            [InlineKeyboardButton("⚙️ Settings", callback_data="settings"), 
-             InlineKeyboardButton("❓ Bantuan", callback_data="help")],
-            [InlineKeyboardButton("▲", callback_data="hide_menu")]
+            [InlineKeyboardButton("� Rekap Harian", callback_data="report_today"), 
+             InlineKeyboardButton("📈 Rekap Mingguan", callback_data="report_week")],
+            [InlineKeyboardButton("📉 Rekap Bulanan", callback_data="report_month"), 
+             InlineKeyboardButton("📅 Bulan Berjalan", callback_data="report_month_to_date")],
+            [InlineKeyboardButton("✏️ Edit Transaksi", callback_data="edit_menu"), 
+             InlineKeyboardButton("⚙️ Settings", callback_data="settings")],
+            [InlineKeyboardButton("❓ Bantuan", callback_data="help"), 
+             InlineKeyboardButton("▲", callback_data="hide_menu")]
         ]
     else:
         keyboard = [
@@ -77,8 +76,7 @@ def get_settings_menu():
     keyboard = [
         [InlineKeyboardButton("⏰ Atur Waktu Laporan", callback_data="set_time")],
         [InlineKeyboardButton("💰 Atur Budget Bulanan", callback_data="set_budget")],
-        [InlineKeyboardButton("📈 Atur Target Investasi", callback_data="set_investment_target")],
-        [InlineKeyboardButton("💵 Atur Target Pemasukan", callback_data="set_income_target")],
+        [InlineKeyboardButton(" Atur Target Pemasukan", callback_data="set_income_target")],
         [InlineKeyboardButton("📋 Review Hari Ini", callback_data="manual_review")],
         [InlineKeyboardButton("↩️ Kembali", callback_data="back_to_previous")]
     ]

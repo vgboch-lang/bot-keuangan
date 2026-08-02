@@ -170,12 +170,9 @@ def get_category_type(category: str) -> str:
     Tentukan type (income/expense/investment) dari kategori
     """
     income_categories = ['income']
-    investment_categories = ['investment']
     
     if category in income_categories:
         return 'income'
-    elif category in investment_categories:
-        return 'investment'
     else:
         return 'expense'
 
@@ -188,11 +185,6 @@ def detect_type(text: str, categories: dict) -> str:
     for keyword in categories.get("income", []):
         if keyword in text:
             return "income"
-    
-    # Cek investment
-    for keyword in categories.get("investment", []):
-        if keyword in text:
-            return "investment"
     
     # Default: expense
     return "expense"
@@ -214,29 +206,6 @@ def detect_income_category(text: str) -> str:
     }
     
     for category, keywords in income_keywords.items():
-        for keyword in keywords:
-            if keyword in text:
-                return category
-    
-    return "lainnya"
-
-# ==================== DETECT INVESTMENT CATEGORY ====================
-def detect_investment_category(text: str) -> str:
-    """Deteksi kategori investment"""
-    text = text.lower()
-    investment_keywords = {
-        "saham": ["saham", "stock", "equity"],
-        "reksadana": ["reksadana", "mutual fund"],
-        "tabungan": ["tabungan", "saving", "deposito"],
-        "kripto": ["kripto", "crypto", "bitcoin", "btc", "eth"],
-        "emas": ["emas", "gold"],
-        "property": ["property", "tanah", "rumah", "land"],
-        "obligasi": ["obligasi", "bond", "sukuk"],
-        "asuransi": ["asuransi", "insurance", "unitlink"],
-        "lainnya": []
-    }
-    
-    for category, keywords in investment_keywords.items():
         for keyword in keywords:
             if keyword in text:
                 return category

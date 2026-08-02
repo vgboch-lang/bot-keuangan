@@ -343,9 +343,14 @@ def get_summary(user_id: int, start_date: str, end_date: str) -> Dict:
     finally:
         conn.close()
 
-def _get_previous_month_summary_conn(conn, user_id: int) -> Dict:
-    today = datetime.now().date()
-    first_day = today.replace(day=1)
+def _get_previous_month_summary_conn(conn, user_id: int, reference_date=None) -> Dict:
+    """Ringkasan bulan sebelum reference_date (default: bulan berjalan)"""
+    if reference_date is None:
+        reference_date = datetime.now().date()
+    if hasattr(reference_date, 'date'):
+        reference_date = reference_date.date()
+
+    first_day = reference_date.replace(day=1)
     last_day_prev = first_day - timedelta(days=1)
     first_day_prev = last_day_prev.replace(day=1)
 
@@ -355,11 +360,11 @@ def _get_previous_month_summary_conn(conn, user_id: int) -> Dict:
         last_day_prev.isoformat()
     )
 
-def get_previous_month_summary(user_id: int) -> Dict:
-    """Dapatkan ringkasan bulan sebelumnya"""
+def get_previous_month_summary(user_id: int, reference_date=None) -> Dict:
+    """Dapatkan ringkasan bulan sebelum reference_date (default: bulan ini)"""
     conn = get_db()
     try:
-        return _get_previous_month_summary_conn(conn, user_id)
+        return _get_previous_month_summary_conn(conn, user_id, reference_date)
     finally:
         conn.close()
 
@@ -474,6 +479,22 @@ def get_all_users() -> List[int]:
     conn.close()
     return [row['user_id'] for row in rows]
 
+
+def get_transaction_months(user_id: int) -> List[str]:
+    """Daftar bulan (format 'YYYY-MM') yang punya transaksi, terbaru dulu"""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT DISTINCT substr(date, 1, 7) AS month
+        FROM transactions
+        WHERE user_id = ? AND is_deleted = 0
+        ORDER BY month DESC
+    ''', (user_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [row['month'] for row in rows]
+
 # ==================== KEYWORD FUNCTIONS ====================
 
 def get_keyword_category(keyword: str) -> Optional[Tuple[str, str]]:
@@ -526,13 +547,14 @@ def get_report_data_optimized(user_id: int, start_date: str, end_date: str) -> D
         # 3. User settings
         settings = _get_user_settings_conn(conn, user_id)
 
-        # 4. Previous month summary
-        prev_summary = _get_previous_month_summary_conn(conn, user_id)
+        # 4. Previous month summary (relatif terhadap periode laporan)
+        prev_summary = _get_previous_month_summary_conn(
+            conn, user_id, datetime.fromisoformat(start_date).date()
+        )
 
         # ===== RINGKASAN =====
         ringkasan = {
             'pemasukan': summary['total_income'],
-            'investasi': summary['total_investment'],
             'pengeluaran': summary['total_expense'],
             'saldo': summary['balance']
         }
@@ -551,11 +573,6 @@ def get_report_data_optimized(user_id: int, start_date: str, end_date: str) -> D
                 if pct >= 90:
                     insights.append(f"Budget {cat_name.capitalize()} hampir habis ({pct:.0f}%)")
 
-        if summary['total_income'] > 0 and summary['total_investment'] > 0:
-            invest_pct = (summary['total_investment'] / summary['total_income']) * 100
-            if invest_pct >= 20:
-                insights.append(f"Investasi {invest_pct:.1f}% dari pemasukan - Bagus!")
-
         if summary['balance'] > 0:
             insights.append(f"Saldo positif: {format_rupiah(summary['balance'])}")
         else:
@@ -566,13 +583,11 @@ def get_report_data_optimized(user_id: int, start_date: str, end_date: str) -> D
             'bulan_ini': {
                 'pemasukan': summary['total_income'],
                 'pengeluaran': summary['total_expense'],
-                'investasi': summary['total_investment'],
                 'saldo': summary['balance']
             },
             'bulan_lalu': {
                 'pemasukan': prev_summary.get('total_income', 0),
                 'pengeluaran': prev_summary.get('total_expense', 0),
-                'investasi': prev_summary.get('total_investment', 0),
                 'saldo': prev_summary.get('balance', 0)
             }
         }
@@ -607,15 +622,6 @@ def get_report_data_optimized(user_id: int, start_date: str, end_date: str) -> D
         pemasukan = []
         for t in data['income']:
             pemasukan.append({
-                'tanggal': format_date(t['date']),
-                'kategori': t['category'].capitalize(),
-                'item': t['item'],
-                'nominal': t['amount']
-            })
-
-        investasi = []
-        for t in data['investment']:
-            investasi.append({
                 'tanggal': format_date(t['date']),
                 'kategori': t['category'].capitalize(),
                 'item': t['item'],
@@ -657,11 +663,6 @@ def get_report_data_optimized(user_id: int, start_date: str, end_date: str) -> D
         # ===== TARGET =====
         target_data = [
             {
-                'target': f"Investasi: {format_rupiah(settings.get('investment_target', 0))}",
-                'realisasi': format_rupiah(summary['total_investment']),
-                'sisa': format_rupiah(settings.get('investment_target', 0) - summary['total_investment'])
-            },
-            {
                 'target': f"Pemasukan: {format_rupiah(settings.get('income_target', 0))}",
                 'realisasi': format_rupiah(summary['total_income']),
                 'sisa': format_rupiah(settings.get('income_target', 0) - summary['total_income'])
@@ -676,7 +677,6 @@ def get_report_data_optimized(user_id: int, start_date: str, end_date: str) -> D
             'pie_chart': pie_chart,
             'daily_data': daily_data,
             'pemasukan': pemasukan,
-            'investasi': investasi,
             'pengeluaran': pengeluaran,
             'budget': budget_data,
             'target': target_data

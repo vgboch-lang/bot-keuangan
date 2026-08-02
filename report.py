@@ -58,7 +58,7 @@ def format_tanggal_with_day(date_obj):
 def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
     data = get_report_data_optimized(user_id, start_date.isoformat(), end_date.isoformat())
     
-    if not data['pemasukan'] and not data['investasi'] and not data['pengeluaran']:
+    if not data['pemasukan'] and not data['pengeluaran']:
         return None
     
     # ===== PERBANDINGAN =====
@@ -67,7 +67,7 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
         perbandingan_data = None
     elif label in ['Mingguan', 'Bulanan', 'BulanIni']:
         if label in ['Bulanan', 'BulanIni']:
-            prev_summary = get_previous_month_summary(user_id)
+            prev_summary = get_previous_month_summary(user_id, start_date)
             label_periode = 'Bulan Lalu'
         else:  # Mingguan
             prev_summary = get_previous_week_summary(user_id, start_date)
@@ -78,11 +78,9 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
                 'label': label_periode,
                 'pemasukan': prev_summary.get('total_income', 0),
                 'pengeluaran': prev_summary.get('total_expense', 0),
-                'investasi': prev_summary.get('total_investment', 0),
                 'saldo': prev_summary.get('balance', 0)
             }
-    
-    # ===== TOTAL PENGELUARAN HARIAN =====
+
     daily_data = data.get('daily_data', [])
     show_daily = label != 'Harian'
     
@@ -134,7 +132,6 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
     story.append(Spacer(1, 0.1*inch))
     
     story.append(Paragraph(f"- Pemasukan = {format_rupiah(data['ringkasan']['pemasukan'])}", ringkasan_style))
-    story.append(Paragraph(f"- Investasi = {format_rupiah(data['ringkasan']['investasi'])}", ringkasan_style))
     story.append(Paragraph(f"- Pengeluaran = {format_rupiah(data['ringkasan']['pengeluaran'])}", ringkasan_style))
     story.append(Paragraph(f"- Saldo = {format_rupiah(data['ringkasan']['saldo'])}", ringkasan_style))
     story.append(Spacer(1, 0.08*inch))
@@ -151,7 +148,6 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
             ['', 'Periode Ini', perbandingan_data['label']],
             ['Pemasukan', format_rupiah(data['ringkasan']['pemasukan']), format_rupiah(perbandingan_data['pemasukan'])],
             ['Pengeluaran', format_rupiah(data['ringkasan']['pengeluaran']), format_rupiah(perbandingan_data['pengeluaran'])],
-            ['Investasi', format_rupiah(data['ringkasan']['investasi']), format_rupiah(perbandingan_data['investasi'])],
             ['Saldo', format_rupiah(data['ringkasan']['saldo']), format_rupiah(perbandingan_data['saldo'])]
         ]
         comp_table = Table(comp_data, colWidths=[TABLE_WIDTH*0.35, TABLE_WIDTH*0.325, TABLE_WIDTH*0.325])
@@ -243,12 +239,11 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
         story.append(Spacer(1, 0.12*inch))
     
     # ============================================================
-    # HALAMAN 3: DETAIL PEMASUKAN, INVESTASI, BUDGET (jika ada)
+    # HALAMAN 3: DETAIL PEMASUKAN & BUDGET (jika ada)
     # ============================================================
     has_income = bool(data['pemasukan'])
-    has_invest = bool(data['investasi'])
     has_budget_page = show_budget and (data['budget'] or data['target'])
-    has_page3_content = has_income or has_invest or has_budget_page
+    has_page3_content = has_income or has_budget_page
     
     if has_page3_content:
         story.append(PageBreak())
@@ -287,39 +282,6 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
                 ('BACKGROUND', (0, len(pemasukan_data)-1), (-1, len(pemasukan_data)-1), COLOR_GRAY_LIGHT),
             ]))
             story.append(pemasukan_table)
-            story.append(Spacer(1, 0.1*inch))
-        
-        if has_invest:
-            story.append(Paragraph("- Detail Investasi", heading_style))
-            investasi_data = [['#', 'Tanggal', 'Kategori', 'Item', 'Nominal']]
-            total_investasi = 0
-            for i, item in enumerate(data['investasi'], 1):
-                total_investasi += item['nominal']
-                investasi_data.append([
-                    str(i),
-                    item['tanggal'],
-                    item['kategori'],
-                    item['item'][:25],
-                    format_rupiah(item['nominal'])
-                ])
-            investasi_data.append(['Total', '', '', '', format_rupiah(total_investasi)])
-            
-            investasi_table = Table(investasi_data, colWidths=col_widths_5col)
-            investasi_table.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), COLOR_NAVY),
-                ('TEXTCOLOR', (0,0), (-1,0), COLOR_WHITE),
-                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0,0), (-1,-1), 7),
-                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                ('BACKGROUND', (0,1), (-1,-1), COLOR_WHITE),
-                ('GRID', (0,0), (-1,-1), 0.3, COLOR_BLACK),
-                ('FONTSIZE', (0,1), (-1,-1), 7),
-                ('ALIGN', (4,1), (4,-1), 'RIGHT'),
-                ('FONTNAME', (0, len(investasi_data)-1), (-1, len(investasi_data)-1), 'Helvetica-Bold'),
-                ('BACKGROUND', (0, len(investasi_data)-1), (-1, len(investasi_data)-1), COLOR_GRAY_LIGHT),
-            ]))
-            story.append(investasi_table)
             story.append(Spacer(1, 0.1*inch))
         
         # BUDGET & TARGET (HANYA BULANAN)

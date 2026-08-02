@@ -1,7 +1,8 @@
 import os
 import re
+import calendar
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
@@ -10,7 +11,7 @@ from database import (
     save_transaction, get_transactions, get_transaction_by_id,
     update_transaction, delete_transaction, get_summary,
     get_user_settings, update_user_setting,
-    get_transaction_history, get_all_users
+    get_transaction_history, get_all_users, get_transaction_months
 )
 from keyboards import (
     get_main_keyboard, get_start_menu, get_after_add_menu,
@@ -33,8 +34,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👋 Halo {user.first_name}! Selamat datang di Bot Catat Keuangan!\n\n"
         "📝 Kirim chat bebas seperti:\n"
         "• 'makan siang 25rb'\n"
-        "• 'gaji 4jt'\n"
-        "• 'investasi saham 1jt'\n\n"
+        "• 'gaji 4jt'\n\n"
         "Atau pilih menu di bawah!",
         parse_mode=ParseMode.HTML,
         reply_markup=get_start_menu(visible=True)
@@ -48,7 +48,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Kirim pesan seperti:
 • "makan siang 25rb" → pengeluaran
 • "gaji 4jt" → pemasukan
-• "investasi saham 1jt" → investasi
 
 📊 <b>Lihat Laporan:</b>
 • Rekap Harian / Mingguan / Bulanan
@@ -61,7 +60,7 @@ Kirim pesan seperti:
 ⚙️ <b>Settings:</b>
 • Ubah waktu rekap otomatis
 • Set budget per kategori
-• Target investasi & pemasukan
+• Target pemasukan
     """
     await update.message.reply_text(help_text, parse_mode=ParseMode.HTML, reply_markup=get_main_keyboard())
 
@@ -80,12 +79,10 @@ async def generate_report(update: Update, context: ContextTypes.DEFAULT_TYPE, pe
     elif period == 'week':
         start_date = today - timedelta(days=today.weekday())
         end_date = today
-    elif period == 'month':
+    elif period in ('month', 'month_to_date'):
         start_date = today.replace(day=1)
         end_date = today
-    elif period == 'month_to_date':
-        start_date = today.replace(day=1)
-        end_date = today
+    # period 'past_month' & 'custom' → start_date & end_date sudah ditentukan pemanggil
     
     if not start_date or not end_date:
         if is_callback:
@@ -106,11 +103,12 @@ async def generate_report(update: Update, context: ContextTypes.DEFAULT_TYPE, pe
         'today': 'Harian',
         'week': 'Mingguan',
         'month': 'Bulanan',
-        'month_to_date': 'Bulanan'
+        'month_to_date': 'Bulanan',
+        'past_month': 'Bulanan'
     }
     label = period_labels.get(period, 'Laporan')
     
-    if period in ['month', 'month_to_date']:
+    if period in ['month', 'month_to_date', 'past_month']:
         date_str = start_date.strftime('%d-%m-%y')
     else:
         date_str = today.strftime('%d-%m-%y')
@@ -249,18 +247,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    elif text == "📈 Investasi":
-        await update.message.reply_text(
-            "📈 Kirim investasi:\n\n"
-            "• 'investasi saham 1jt'\n"
-            "• 'investasi tabungan 500k'\n"
-            "• 'investasi kripto 1jt'\n\n"
-            "Atau chat bebas dengan keyword 'investasi'",
-            reply_markup=get_main_keyboard()
-        )
-        return
-    
-    elif text == "📊 Rekap Harian":
+    elif text == " Rekap Harian":
         await generate_report(update, context, "today")
         return
     
@@ -274,6 +261,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif text == "📅 Bulan Berjalan":
         await generate_report(update, context, "month_to_date")
+        return
+    
+    elif text == "📁 Riwayat":
+        await show_history_menu(update, context)
         return
     
     elif text == "✏️ Edit Transaksi":
@@ -295,10 +286,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if context.user_data.get('waiting_for') and context.user_data['waiting_for'].startswith('budget_'):
         await handle_set_budget(update, context, text)
-        return
-    
-    if context.user_data.get('waiting_for') == 'set_investment_target':
-        await handle_set_investment_target(update, context, text)
         return
     
     if context.user_data.get('waiting_for') == 'set_income_target':
@@ -333,8 +320,7 @@ async def process_transaction(update: Update, context: ContextTypes.DEFAULT_TYPE
                 "❌ Tidak ditemukan nominal.\n\n"
                 "Contoh:\n"
                 "• 'makan siang 25rb'\n"
-                "• 'gaji 4jt'\n"
-                "• 'investasi saham 1jt'",
+                "• 'gaji 4jt'",
                 reply_markup=get_main_keyboard()
             )
             return
@@ -444,62 +430,51 @@ async def show_edit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
         reply_markup=get_edit_menu(editable, page, visible=True)
     )
 
-# ==================== SETTINGS ====================
+# ==================== RIWAYAT (HISTORY) ====================
 
-# ==================== SETTINGS MENU ====================
-async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+MONTH_NAMES = {
+    1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
+    5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
+    9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember'
+}
+
+async def show_history_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Tampilkan daftar bulan yang punya transaksi untuk unduh laporan PDF"""
     user_id = update.effective_user.id
-    settings = get_user_settings(user_id)
+    is_callback = update.callback_query is not None
 
-    text = """
-⚙️ <b>Settings</b>
+    months = get_transaction_months(user_id)
 
-💰 Di sini kamu bisa mengatur budget bulanan, target investasi, 
-dan waktu laporan otomatis. Semua nominal adalah per bulan.
+    if not months:
+        text = "📭 Belum ada riwayat transaksi."
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("↩️ Kembali", callback_data="back_to_previous")]
+        ])
+    else:
+        text = "📁 <b>Pilih bulan untuk mengunduh laporan PDF:</b>\n\n"
+        keyboard_rows = []
+        for m in months:
+            try:
+                year, month = map(int, m.split('-'))
+                label = f"{MONTH_NAMES.get(month, month)} {year}"
+            except Exception:
+                label = m
+            keyboard_rows.append([
+                InlineKeyboardButton(f"📅 {label}", callback_data=f"history_month_{m}")
+            ])
+        keyboard_rows.append([InlineKeyboardButton("↩️ Kembali", callback_data="back_to_previous")])
+        keyboard = InlineKeyboardMarkup(keyboard_rows)
 
-📅 <b>Waktu Laporan Otomatis:</b> {}
-""".format(settings.get('report_time', '20:00'))
+    if is_callback:
+        await update.callback_query.edit_message_text(
+            text, parse_mode=ParseMode.HTML, reply_markup=keyboard
+        )
+    else:
+        await update.message.reply_text(
+            text, parse_mode=ParseMode.HTML, reply_markup=keyboard
+        )
 
-    text += "\n💰 <b>Budget per kategori (per bulan):</b>\n"
-    budget_categories = [
-        ('makanan', '🍔 Makanan'),
-        ('jajanan', '🍿 Jajanan'),
-        ('minuman', '🥤 Minuman'),
-        ('rokok', '🚬 Rokok'),
-        ('transport', '🚗 Transport'),
-        ('belanja', '🛒 Belanja'),
-        ('tagihan', '📄 Tagihan'),
-        ('hiburan', '🎮 Hiburan'),
-        ('kesehatan', '💊 Kesehatan'),
-        ('pendidikan', '📚 Pendidikan')
-    ]
-
-    for key, label in budget_categories:
-        value = settings.get(f'budget_{key}', 0)
-        if value > 0:
-            text += f"• {label}: {format_rupiah(value)}\n"
-        else:
-            text += f"• {label}: Belum diatur\n"
-
-    inv_target = settings.get('investment_target', 0)
-    inc_target = settings.get('income_target', 0)
-    text += f"\n📈 <b>Target Investasi Bulanan:</b> {format_rupiah(inv_target) if inv_target > 0 else 'Belum diatur'}"
-    text += f"\n💰 <b>Target Pemasukan Bulanan:</b> {format_rupiah(inc_target) if inc_target > 0 else 'Belum diatur'}"
-
-    text += """
-    
-💡 <b>Tips:</b>
-• Budget = batas maksimal pengeluaran per kategori per bulan
-• Target Investasi = target nominal investasi per bulan
-• Target Pemasukan = target pemasukan per bulan
-• Laporan otomatis dikirim setiap hari jam yang kamu atur
-"""
-
-    await update.message.reply_text(
-        text,
-        parse_mode=ParseMode.HTML,
-        reply_markup=get_settings_menu()
-    )
+# ==================== SETTINGS ====================
 
 # ==================== HANDLE SETTINGS INPUT ====================
 
@@ -535,25 +510,6 @@ async def handle_set_budget(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     update_user_setting(user_id, f'budget_{category}', amount)
     await update.message.reply_text(
         f"✅ Budget {category} diubah menjadi {format_rupiah(amount)}",
-        reply_markup=get_main_keyboard()
-    )
-    context.user_data['waiting_for'] = None
-
-async def handle_set_investment_target(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
-    user_id = update.effective_user.id
-    
-    from utils import parse_nominal
-    amount = parse_nominal(text)
-    if not amount:
-        try:
-            amount = int(text.replace('.', '').replace(',', ''))
-        except:
-            await update.message.reply_text("❌ Nominal tidak valid.")
-            return
-    
-    update_user_setting(user_id, 'investment_target', amount)
-    await update.message.reply_text(
-        f"✅ Target investasi diubah menjadi {format_rupiah(amount)}",
         reply_markup=get_main_keyboard()
     )
     context.user_data['waiting_for'] = None
@@ -661,8 +617,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             "📝 Kirim chat bebas seperti:\n\n"
             "• 'makan siang 25rb'\n"
-            "• 'gaji 4jt'\n"
-            "• 'investasi saham 1jt'",
+            "• 'gaji 4jt'",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("↩️ Kembali", callback_data="back_to_previous")]
             ])
@@ -680,16 +635,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    elif data == "investment_add":
-        await query.edit_message_text(
-            "📈 Kirim investasi:\n\n"
-            "• 'investasi saham 1jt'",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("↩️ Kembali", callback_data="back_to_previous")]
-            ])
-        )
-        return
-    
     # ===== REPORT =====
     elif data.startswith("report_"):
         period = data.replace("report_", "")
@@ -701,6 +646,24 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await generate_report(update, context, "month")
         elif period == "month_to_date":
             await generate_report(update, context, "month_to_date")
+        return
+    
+    # ===== RIWAYAT / HISTORY =====
+    elif data == "history":
+        await show_history_menu(update, context)
+        return
+    
+    elif data.startswith("history_month_"):
+        month_str = data.replace("history_month_", "")
+        try:
+            year, month = map(int, month_str.split('-'))
+            start_date = date(year, month, 1)
+            end_date = date(year, month, calendar.monthrange(year, month)[1])
+        except Exception as e:
+            logger.error(f"Error parse history month: {e}")
+            await query.edit_message_text("❌ Bulan tidak valid.")
+            return
+        await generate_report(update, context, "past_month", start_date, end_date)
         return
     
     # ===== EDIT =====
@@ -755,8 +718,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("🎮 Hiburan", callback_data=f"cat_{trans_id}_hiburan")],
             [InlineKeyboardButton("💊 Kesehatan", callback_data=f"cat_{trans_id}_kesehatan"),
              InlineKeyboardButton("📚 Pendidikan", callback_data=f"cat_{trans_id}_pendidikan")],
-            [InlineKeyboardButton("💰 Pemasukan", callback_data=f"cat_{trans_id}_income"),
-             InlineKeyboardButton("📈 Investasi", callback_data=f"cat_{trans_id}_investment")],
+            [InlineKeyboardButton("💰 Pemasukan", callback_data=f"cat_{trans_id}_income")],
             [InlineKeyboardButton("📦 Lainnya", callback_data=f"cat_{trans_id}_lainnya")],
             [InlineKeyboardButton("↩️ Batal", callback_data=f"back_to_edit_{trans_id}")]
         ]
@@ -930,16 +892,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['waiting_for'] = f'budget_{category}'
         return
     
-    elif data == "set_investment_target":
-        await query.edit_message_text(
-            "📈 Masukkan target investasi bulanan:\n\nContoh: 5000000 atau 5jt",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("↩️ Kembali", callback_data="back_to_previous")]
-            ])
-        )
-        context.user_data['waiting_for'] = 'set_investment_target'
-        return
-    
     elif data == "set_income_target":
         await query.edit_message_text(
             "💰 Masukkan target pemasukan bulanan:\n\nContoh: 5000000 atau 5jt",
@@ -966,8 +918,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📝 <b>Catat Transaksi:</b>\n"
             "Kirim chat bebas dengan format:\n"
             "• 'makan siang 25rb' → pengeluaran\n"
-            "• 'gaji 4jt' → pemasukan\n"
-            "• 'investasi saham 1jt' → investasi\n\n"
+            "• 'gaji 4jt' → pemasukan\n\n"
             "📊 <b>Lihat Laporan:</b>\n"
             "Pilih menu Rekap Harian/Mingguan/Bulanan/Bulan Berjalan\n\n"
             "✏️ <b>Edit Transaksi:</b>\n"
@@ -1079,7 +1030,7 @@ async def settings_menu_callback(update: Update, context: ContextTypes.DEFAULT_T
     text = """
 ⚙️ <b>Settings</b>
 
-💰 Di sini kamu bisa mengatur budget bulanan, target investasi, 
+💰 Di sini kamu bisa mengatur budget bulanan 
 dan waktu laporan otomatis. Semua nominal adalah per bulan.
 
 📅 <b>Waktu Laporan Otomatis:</b> {}
@@ -1097,7 +1048,7 @@ async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = """
 ⚙️ <b>Settings</b>
 
-💰 Di sini kamu bisa mengatur budget bulanan, target investasi, 
+💰 Di sini kamu bisa mengatur budget bulanan 
 dan waktu laporan otomatis. Semua nominal adalah per bulan.
 
 📅 <b>Waktu Laporan Otomatis:</b> {}
@@ -1124,16 +1075,13 @@ dan waktu laporan otomatis. Semua nominal adalah per bulan.
         else:
             text += f"• {label}: Belum diatur\n"
 
-    inv_target = settings.get('investment_target', 0)
     inc_target = settings.get('income_target', 0)
-    text += f"\n📈 <b>Target Investasi Bulanan:</b> {format_rupiah(inv_target) if inv_target > 0 else 'Belum diatur'}"
     text += f"\n💰 <b>Target Pemasukan Bulanan:</b> {format_rupiah(inc_target) if inc_target > 0 else 'Belum diatur'}"
 
     text += """
     
 💡 <b>Tips:</b>
 • Budget = batas maksimal pengeluaran per kategori per bulan
-• Target Investasi = target nominal investasi per bulan
 • Target Pemasukan = target pemasukan per bulan
 • Laporan otomatis dikirim setiap hari jam yang kamu atur
 """

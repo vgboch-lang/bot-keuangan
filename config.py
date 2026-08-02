@@ -41,7 +41,7 @@ CATEGORY_KEYWORDS = {
     # ========== 1. 🍔 MAKANAN (Makanan Berat / Utama) ==========
     'makanan': [
         # Nasi & Olahan
-        'nasi', 'nasi goreng', 'nasi padang', 'nasi uduk', 'nasi kuning',
+        'nasi', 'nasi goreng', 'nasi padang', 'naspad', 'nasi uduk', 'nasi kuning',
         'nasi campur', 'nasi rames', 'nasi kotak', 'nasi bungkus', 'nasi liwet',
         'nasi bakar', 'nasi tutug', 'nasi tim', 'nasi ayam', 'nasi bebek',
         'nasi soto', 'nasi rawon', 'nasi gudeg', 'nasi pecel', 'nasi uduk',
@@ -249,6 +249,9 @@ CATEGORY_KEYWORDS = {
         # Mainan & Hadiah
         'mainan', 'hadiah', 'kado', 'parcel', 'boneka',
         
+        # Top Up & E-Wallet
+        'topup', 'saldo', 'ewallet', 'gopay', 'ovo', 'shopeepay', 'spay',
+        
         # Lainnya
         'belanja', 'beli', 'barang', 'keperluan'
     ],
@@ -394,45 +397,7 @@ CATEGORY_KEYWORDS = {
         'upah', 'honor', 'uang masuk'
     ],
 
-    # ========== 12. 📈 INVESTASI ==========
-    'investment': [
-        # Saham
-        'saham', 'stock', 'equity', 'beli saham', 'jual saham',
-        
-        # Reksadana
-        'reksadana', 'mutual fund', 'reksa',
-        
-        # Tabungan & Deposito
-        'tabungan', 'saving', 'deposito', 'deposit',
-        
-        # Kripto
-        'kripto', 'crypto', 'bitcoin', 'btc', 'eth', 'ethereum',
-        'usdt', 'solana', 'cardano', 'bnb', 'xrp',
-        
-        # Emas
-        'emas', 'gold', 'logam mulia', 'antam',
-        
-        # Property
-        'property', 'tanah', 'rumah', 'apartemen', 'ruko',
-        'kavling', 'bangunan',
-        
-        # Obligasi
-        'obligasi', 'bond', 'sukuk', 'surat berharga',
-        
-        # Asuransi
-        'asuransi', 'insurance', 'unitlink',
-        
-        # Dana Pensiun
-        'dana pensiun', 'retirement', 'dapen',
-        
-        # Forex
-        'forex', 'valas', 'valuta asing', 'mata uang',
-        
-        # Lainnya
-        'investasi', 'invest'
-    ],
-
-    # ========== 13. 📦 LAINNYA ==========
+    # ========== 12.  LAINNYA ==========
     'lainnya': [
         'lainnya', 'lain', 'dll', 'dsb', 'lain-lain',
         'tak terduga', 'mendadak', 'dadakan',
@@ -447,7 +412,7 @@ CATEGORIES = CATEGORY_KEYWORDS
 # ===== STOP WORDS (Kata Kerja yang Dihapus dari Item) =====
 STOP_WORDS = [
     'makan', 'beli', 'jajan', 'minum', 'sarapan', 'makan siang', 'makan malam',
-    'ngopi', 'ngemil', 'order', 'pesan', 'bayar', 'isi', 'top up', 'isi ulang',
+    'ngopi', 'ngemil', 'order', 'pesan', 'bayar', 'isi', 'isi ulang',
     'ambil', 'cari', 'dapat', 'kirim', 'transfer', 'bayarin', 'masuk', 'keluar',
     'tambah', 'kurang', 'pakai', 'buat', 'pergi', 'datang', 'pulang'
 ]
@@ -468,7 +433,6 @@ CATEGORY_DISPLAY = {
     'kesehatan': '💊 Kesehatan',
     'pendidikan': '📚 Pendidikan',
     'income': '💰 Pemasukan',
-    'investment': '📈 Investasi',
     'lainnya': '📦 Lainnya'
 }
 
@@ -487,5 +451,4 @@ DEFAULT_BUDGET = {
     "lainnya": 500000
 }
 
-DEFAULT_INVESTMENT_TARGET = 5000000
 DEFAULT_INCOME_TARGET = 5000000

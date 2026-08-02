@@ -10,7 +10,7 @@ from config import (
 )
 from utils import (
     parse_nominal, detect_type, detect_category,
-    detect_income_category, detect_investment_category,
+    detect_income_category,
     extract_item, parse_date
 )
 from database import get_keyword_category, save_keyword
@@ -29,8 +29,6 @@ def parse_with_regex(text: str) -> Optional[Dict]:
     
     if type_ == "income":
         category = detect_income_category(text)
-    elif type_ == "investment":
-        category = detect_investment_category(text)
     else:
         category = detect_category(text, CATEGORIES)
     
@@ -239,6 +237,12 @@ def parse_transaction(text: str, use_db: bool = True) -> List[Dict]:
                         existing_word = get_keyword_category(word)
                         if not existing_word:
                             save_keyword(word, result['type'], result['category'])
+    
+    # Fitur investasi sudah dihapus: pastikan tidak ada transaksi bertipe investment
+    for result in results:
+        if result.get('type') == 'investment':
+            result['type'] = 'expense'
+            result['category'] = 'lainnya'
     
     # SAFETY: PASTIKAN RETURN LIST!
     if not isinstance(results, list):
