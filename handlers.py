@@ -56,6 +56,9 @@ HELP_TEXT = (
     "• /edit → edit transaksi\n"
     "• /review → rekap hari ini\n"
     "• /myid → lihat User ID kamu\n\n"
+    "💬 <b>Rekap via chat biasa:</b>\n"
+    "• 'rekap' / 'rekap hari ini' / 'rekap hariini' → rekap harian (teks di chat)\n"
+    "• 'rekap mingguan' / 'rekap bulanan' → PDF\n\n"
     "🧠 <b>4. Bot Bisa Belajar</b>\n"
     "Kalau kategori salah, edit manual lewat ✏️ Edit Transaksi.\n"
     "Bot akan mengingat & memakai kategori itu untuk kata serupa.\n\n"
@@ -380,6 +383,47 @@ def format_today_transactions(user_id: int) -> Optional[str]:
     lines.append(f"Total Pemasukan: {format_rupiah(total_income)}")
     return "\n".join(lines)
 
+
+def format_recap_text(user_id: int, start, end, label: str) -> str:
+    """Rekap CHAT: SEMUA transaksi keluar, dikelompokkan per kategori (untuk rekap harian)."""
+    from collections import defaultdict
+    rows = get_transactions(user_id, start.isoformat(), end.isoformat())
+    if not rows:
+        return f"📭 Belum ada transaksi di periode {label.lower()}."
+    exp = defaultdict(list)
+    inc = defaultdict(list)
+    total_exp = total_inc = 0
+    for t in rows:
+        if t['type'] == 'income':
+            inc[t['category']].append(t)
+            total_inc += t['amount']
+        else:
+            exp[t['category']].append(t)
+            total_exp += t['amount']
+    lines = [f"📊 Rekap {label}",
+             f"🗓️ {start.strftime('%d %b %Y')} s.d. {end.strftime('%d %b %Y')}"]
+    if exp:
+        lines.append("")
+        lines.append("💸 Pengeluaran:")
+        for cat in sorted(exp, key=lambda c: -sum(x['amount'] for x in exp[c])):
+            cat_name = CATEGORY_DISPLAY.get(cat, cat.capitalize())
+            lines.append(f"\n  {cat_name}:")
+            for t in exp[cat]:
+                lines.append(f"    • {t['item']} — {format_rupiah(t['amount'])}")
+            lines.append(f"    Subtotal: {format_rupiah(sum(x['amount'] for x in exp[cat]))}")
+        lines.append(f"\n  Total Pengeluaran: {format_rupiah(total_exp)}")
+    if inc:
+        lines.append("")
+        lines.append("💰 Pemasukan:")
+        for cat in sorted(inc, key=lambda c: -sum(x['amount'] for x in inc[c])):
+            cat_name = CATEGORY_DISPLAY.get(cat, cat.capitalize())
+            lines.append(f"\n  {cat_name}:")
+            for t in inc[cat]:
+                lines.append(f"    • {t['item']} — {format_rupiah(t['amount'])}")
+            lines.append(f"    Subtotal: {format_rupiah(sum(x['amount'] for x in inc[cat]))}")
+        lines.append(f"\n  Total Pemasukan: {format_rupiah(total_inc)}")
+    return "\n".join(lines)
+
 async def show_today_transactions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Kirim daftar transaksi hari ini ke chat (dari tombol)"""
     user_id = update.effective_user.id
@@ -546,7 +590,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get('waiting_for') == 'set_income_target':
         await handle_set_income_target(update, context, text)
         return
-    
+
+    # ===== REKAP / PENGELUARAN VIA CHAT BIASA (tanpa / dan tanpa tombol) =====
+    low = text.strip().lower().lstrip('/')
+    first = low.split()[0] if low.split() else ''
+    if first in ('rekap', 'riwayat'):
+        today = datetime.now().date()
+        if 'mingguan' in low:
+            await generate_report(update, context, "week")
+        elif 'bulanan' in low:
+            await generate_report(update, context, "month")
+        else:
+            # rekap harian → rekap TEKS di chat (semua item per kategori)
+            await update.message.reply_text(
+                format_recap_text(user_id, today, today, "Harian")
+            )
+        return
+    if low in ('pengeluaran', 'pengeluaran hari ini'):
+        await show_today_transactions(update, context)
+        return
+
     # Proses transaksi
     logger.info(f"🔄 Memanggil process_transaction untuk: {text[:50]}...")
     await process_transaction(update, context, text)

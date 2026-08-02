@@ -1,0 +1,29 @@
+# ===== JANGAN PERNAH COMMIT (privasi & keamanan) =====
+# Session login WhatsApp Web — SENSITIF
+bot-whatsapp/wa_session/
+wa_session/
+
+# Database pribadi (data keuangan)
+*.db
+*.db.bak-*
+finance.db
+bot-whatsapp/finance.db
+reports/
+
+# Konfigurasi rahasia
+.env
+.env.*
+
+# File QR login
+qr_login.png
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Lainnya
+*.log
+.DS_Store
+Thumbs.db
