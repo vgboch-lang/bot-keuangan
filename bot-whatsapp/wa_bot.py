@@ -20,10 +20,33 @@ import time
 import json
 import threading
 import functools
+import requests
 from datetime import datetime
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def send_qr_to_telegram(qr_path, caption='📱 Scan QR ini untuk login WhatsApp bot'):
+    """Kirim file QR ke chat Telegram pengguna via Bot API.
+    Diperlukan env BOT_TOKEN (token bot Telegram) dan WA_USER_ID (ID chat pemilik)."""
+    token = os.getenv('BOT_TOKEN', '').strip()
+    chat_id = os.getenv('WA_USER_ID', '').strip()
+    if not token or not chat_id:
+        print('⚠️ BOT_TOKEN/WA_USER_ID belum diset → QR tidak dikirim ke Telegram.')
+        return
+    try:
+        with open(qr_path, 'rb') as f:
+            r = requests.post(
+                f'https://api.telegram.org/bot{token}/sendPhoto',
+                data={'chat_id': chat_id, 'caption': caption},
+                files={'photo': f}, timeout=15)
+        if r.ok:
+            print('📲 QR terkirim ke Telegram.')
+        else:
+            print('⚠️ Gagal kirim QR ke Telegram:', r.text[:120])
+    except Exception as e:
+        print('⚠️ Gagal kirim QR ke Telegram:', e)
 
 # Di Railway: simpan session login & QR di volume /app/data agar PERSISTEN
 # (tidak hilang saat restart) dan satu volume yang sama dengan bot Telegram
@@ -446,12 +469,18 @@ def main():
 
             # Tunggu login TANPA batas waktu — QR terus di-refresh & server QR tetap
             # jalan, sehingga pengguna bisa scan kapan saja (tidak timeout 180 detik).
+            # QR juga dikirim ke Telegram tiap ~25 detik agar selalu fresh untuk di-scan.
+            last_sent = 0.0
             while True:
                 try:
                     if _logged_in():
                         print("✅ Login berhasil.")
                         break
                     _capture_qr()
+                    now = time.time()
+                    if now - last_sent > 25:
+                        last_sent = now
+                        send_qr_to_telegram(qr_path)
                     page.wait_for_timeout(3000)
                 except Exception as e:
                     print("⚠️ Menunggu login (retry):", e)
