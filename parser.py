@@ -33,9 +33,9 @@ def parse_with_regex(text: str) -> Optional[Dict]:
         category = detect_category(text, CATEGORIES)
     
     # Ambil item
-    item_text = re.sub(r'\d+[.,]?\d*\s*(jt|juta|m|mil|rb|ribu|k|k-an)', '', text, flags=re.IGNORECASE)
-    item_text = re.sub(r'\d+[.,]?\d*', '', item_text)
-    item_text = item_text.strip()
+    raw_item = re.sub(r'\d+[.,]?\d*\s*(jt|juta|m|mil|rb|ribu|k|k-an)', '', text, flags=re.IGNORECASE)
+    raw_item = re.sub(r'\d+[.,]?\d*', '', raw_item).strip()
+    item_text = raw_item
     
     for word in STOP_WORDS:
         if item_text.lower().startswith(word + ' '):
@@ -49,6 +49,11 @@ def parse_with_regex(text: str) -> Optional[Dict]:
     if not item_text:
         item_text = re.sub(r'\d+[.,]?\d*\s*(jt|juta|m|mil|rb|ribu|k|k-an).*$', '', text, flags=re.IGNORECASE)
         item_text = re.sub(r'\d+[.,]?\d*$', '', item_text).strip()
+    
+    # Aturan chat singkat: kalau input pendek (<= 2 kata) simpan SEMUA,
+    # jangan dipangkas jadi 1 kata (mis. "makan pagi" jangan jadi "pagi")
+    if len(raw_item.split()) >= 2 and len(item_text.split()) <= 1:
+        item_text = raw_item
     
     return {
         'type': type_,
@@ -136,11 +141,19 @@ def parse_multi_transactions(text: str) -> List[Dict]:
     for sep in SEPARATORS:
         new_parts = []
         for part in parts:
-            if sep in part:
+            if sep.isalpha():
+                # Separator berupa kata: harus kata utuh (hindari 'dan' di dalam 'padang')
+                pattern = r'\b' + re.escape(sep) + r'\b'
+                if not re.search(pattern, part):
+                    new_parts.append(part)
+                    continue
+                split_parts = re.split(pattern, part)
+            elif sep in part:
                 split_parts = part.split(sep)
-                new_parts.extend([p.strip() for p in split_parts if p.strip()])
             else:
                 new_parts.append(part)
+                continue
+            new_parts.extend([p.strip() for p in split_parts if p.strip()])
         parts = new_parts
     
     results = []

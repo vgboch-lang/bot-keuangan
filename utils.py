@@ -147,20 +147,27 @@ def extract_item(text: str, stop_words: list, default: str = "transaksi") -> str
 
 # ==================== SPLIT MULTI TRANSACTIONS ====================
 def split_multi_transactions(text: str, separators: list) -> List[str]:
-    """Split teks menjadi beberapa transaksi berdasarkan separator"""
+    """Split teks menjadi beberapa transaksi berdasarkan separator (kata = kata utuh)"""
     text = text.strip()
     parts = [text]
-    
+
     for sep in separators:
         new_parts = []
         for part in parts:
-            if sep in part:
+            if sep.isalpha():
+                pattern = r'\b' + re.escape(sep) + r'\b'
+                if not re.search(pattern, part):
+                    new_parts.append(part)
+                    continue
+                split_parts = re.split(pattern, part)
+            elif sep in part:
                 split_parts = part.split(sep)
-                new_parts.extend([p.strip() for p in split_parts if p.strip()])
             else:
                 new_parts.append(part)
+                continue
+            new_parts.extend([p.strip() for p in split_parts if p.strip()])
         parts = new_parts
-    
+
     # Filter out empty parts
     return [p for p in parts if p]
 

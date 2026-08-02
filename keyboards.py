@@ -6,8 +6,8 @@ def get_main_keyboard():
     """Keyboard utama yang selalu muncul di bawah (2 kolom)"""
     keyboard = [
         [KeyboardButton("📝 Catat Cepat"), KeyboardButton("💰 Pemasukan")],
-        [KeyboardButton("📊 Rekap Harian"), KeyboardButton("📋 Pengeluaran Hari Ini")],
-        [KeyboardButton("📈 Rekap Mingguan"), KeyboardButton("📉 Rekap Bulanan")],
+        [KeyboardButton("📋 Pengeluaran Hari Ini"), KeyboardButton("📊 PDF Rekap Harian")],
+        [KeyboardButton("📈 PDF Rekap Mingguan"), KeyboardButton("📉 PDF Rekap Bulanan")],
         [KeyboardButton("📅 Bulan Berjalan"), KeyboardButton("✏️ Edit Transaksi")],
         [KeyboardButton("📁 Riwayat"), KeyboardButton("⚙️ Settings")],
         [KeyboardButton("❓ Bantuan")]
@@ -22,9 +22,9 @@ def get_start_menu(visible: bool = True):
         keyboard = [
             [InlineKeyboardButton("📝 Catat Cepat", callback_data="quick_add"), 
              InlineKeyboardButton("💰 Pemasukan", callback_data="income_add")],
-            [InlineKeyboardButton("� Rekap Harian", callback_data="report_today"), 
-             InlineKeyboardButton("📈 Rekap Mingguan", callback_data="report_week")],
-            [InlineKeyboardButton("📉 Rekap Bulanan", callback_data="report_month"), 
+            [InlineKeyboardButton("📊 PDF Rekap Harian", callback_data="report_today"), 
+             InlineKeyboardButton("📈 PDF Rekap Mingguan", callback_data="report_week")],
+            [InlineKeyboardButton("📉 PDF Rekap Bulanan", callback_data="report_month"), 
              InlineKeyboardButton("📅 Bulan Berjalan", callback_data="report_month_to_date")],
             [InlineKeyboardButton("✏️ Edit Transaksi", callback_data="edit_menu"), 
              InlineKeyboardButton("⚙️ Settings", callback_data="settings")],
@@ -42,7 +42,7 @@ def get_after_add_menu(visible: bool = True):
     if visible:
         keyboard = [
             [InlineKeyboardButton("📝 Catat Lagi", callback_data="quick_add"), 
-             InlineKeyboardButton("📊 Rekap", callback_data="report_today")],
+             InlineKeyboardButton("📊 PDF Rekap", callback_data="report_today")],
             [InlineKeyboardButton("✏️ Edit", callback_data="edit_last"), 
              InlineKeyboardButton("↩️ Menu", callback_data="main_menu")],
             [InlineKeyboardButton("▲", callback_data="hide_menu")]
@@ -53,12 +53,25 @@ def get_after_add_menu(visible: bool = True):
         ]
     return InlineKeyboardMarkup(keyboard)
 
+def get_feedback_menu(trans_id, visible: bool = True):
+    """Menu pada pesan feedback setelah mencatat: edit transaksi ini + toggle ▼/▲"""
+    if visible:
+        keyboard = [
+            [InlineKeyboardButton("✏️ Edit Transaksi Ini", callback_data=f"edit_{trans_id}")],
+            [InlineKeyboardButton("▲", callback_data=f"hide_feedback_{trans_id}")]
+        ]
+    else:
+        keyboard = [
+            [InlineKeyboardButton("▼", callback_data=f"show_feedback_{trans_id}")]
+        ]
+    return InlineKeyboardMarkup(keyboard)
+
 def get_after_report_menu(visible: bool = True):
     """Menu setelah laporan PDF (dengan toggle hide/unhide)"""
     if visible:
         keyboard = [
-            [InlineKeyboardButton("📈 Rekap Mingguan", callback_data="report_week"), 
-             InlineKeyboardButton("📉 Rekap Bulanan", callback_data="report_month")],
+            [InlineKeyboardButton("📈 PDF Rekap Mingguan", callback_data="report_week"), 
+             InlineKeyboardButton("📉 PDF Rekap Bulanan", callback_data="report_month")],
             [InlineKeyboardButton("📅 Bulan Berjalan", callback_data="report_month_to_date"), 
              InlineKeyboardButton("📝 Catat Lagi", callback_data="quick_add")],
             [InlineKeyboardButton("↩️ Menu Utama", callback_data="main_menu"), 

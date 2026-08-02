@@ -18,7 +18,7 @@ from database import (
     has_trial, start_trial, is_trial_active
 )
 from keyboards import (
-    get_main_keyboard, get_start_menu, get_after_add_menu,
+    get_main_keyboard, get_start_menu, get_feedback_menu,
     get_after_report_menu, get_settings_menu, get_budget_menu,
     get_edit_menu, get_edit_action_menu, get_confirm_delete_menu,
     get_hidden_menu, get_hidden_edit_menu
@@ -42,10 +42,10 @@ HELP_TEXT = (
     "🧭 <b>2. Tombol di bawah (Reply Keyboard)</b>\n"
     "• 📝 Catat Cepat → panduan mencatat\n"
     "• 💰 Pemasukan → catat pemasukan\n"
-    "• 📊 Rekap Harian → laporan PDF hari ini\n"
-    "• 📋 Pengeluaran Hari Ini → daftar transaksi hari ini\n"
-    "• 📈 Rekap Mingguan → laporan PDF minggu ini\n"
-    "• 📉 Rekap Bulanan → laporan PDF bulan ini\n"
+    "• � Pengeluaran Hari Ini → daftar transaksi hari ini\n"
+    "• 📊 PDF Rekap Harian → laporan PDF hari ini\n"
+    "• 📈 PDF Rekap Mingguan → laporan PDF minggu ini\n"
+    "• 📉 PDF Rekap Bulanan → laporan PDF bulan ini\n"
     "• 📅 Bulan Berjalan → laporan tgl 1 sampai hari ini\n"
     "• ✏️ Edit Transaksi → edit/hapus transaksi hari ini\n"
     "• 📁 Riwayat → unduh PDF bulan-bulan sebelumnya\n"
@@ -502,15 +502,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_today_transactions(update, context)
         return
     
-    elif text == "📊 Rekap Harian":
+    elif text == "📊 PDF Rekap Harian":
         await generate_report(update, context, "today")
         return
     
-    elif text == "📈 Rekap Mingguan":
+    elif text == "📈 PDF Rekap Mingguan":
         await generate_report(update, context, "week")
         return
     
-    elif text == "📉 Rekap Bulanan":
+    elif text == "📉 PDF Rekap Bulanan":
         await generate_report(update, context, "month")
         return
     
@@ -603,9 +603,10 @@ async def process_transaction(update: Update, context: ContextTypes.DEFAULT_TYPE
                 msg += f"{i}. {cat_name} {format_rupiah(r['amount'])} - {r['item']}\n"
         
         # Kirim pesan transaksi dan simpan referensi
+        last_id = saved[-1]['id'] if saved else None
         sent_msg = await update.message.reply_text(
             msg,
-            reply_markup=get_after_add_menu(visible=False)
+            reply_markup=get_feedback_menu(last_id) if last_id else None
         )
         
         # Simpan data transaksi untuk tombol "Kembali"
@@ -613,6 +614,7 @@ async def process_transaction(update: Update, context: ContextTypes.DEFAULT_TYPE
             'chat_id': sent_msg.chat_id,
             'message_id': sent_msg.message_id,
             'text': msg,
+            'trans_id': last_id,
             'from_transaction': True
         }
         
@@ -841,9 +843,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if last_data and last_data.get('from_transaction'):
             # Restore pesan transaksi
             try:
+                menu = get_feedback_menu(last_data['trans_id']) if last_data.get('trans_id') else None
                 await query.edit_message_text(
                     last_data['text'],
-                    reply_markup=get_after_add_menu(visible=False)
+                    reply_markup=menu
                 )
                 # Hapus data agar tidak dipakai lagi
                 context.user_data['last_transaction_data'] = None
@@ -884,6 +887,21 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             f"❌ Akses user <code>{target}</code> ditolak.",
             parse_mode=ParseMode.HTML
+        )
+        return
+    
+    # ===== TOGGLE FEEDBACK (pesan setelah catat) =====
+    elif data.startswith("hide_feedback_"):
+        trans_id = int(data.replace("hide_feedback_", ""))
+        await query.edit_message_reply_markup(
+            reply_markup=get_feedback_menu(trans_id, visible=False)
+        )
+        return
+    
+    elif data.startswith("show_feedback_"):
+        trans_id = int(data.replace("show_feedback_", ""))
+        await query.edit_message_reply_markup(
+            reply_markup=get_feedback_menu(trans_id, visible=True)
         )
         return
     
