@@ -475,17 +475,17 @@ def main():
 
             # Tunggu login TANPA batas waktu — QR terus di-refresh & server QR tetap
             # jalan, sehingga pengguna bisa scan kapan saja (tidak timeout 180 detik).
-            # QR juga dikirim ke Telegram tiap ~25 detik agar selalu fresh untuk di-scan.
-            last_sent = 0.0
+            # Kirim QR ke Telegram HANYA sekali & HANYA jika WA_SEND_QR_TG=1 (anti-spam).
+            qr_send_tg = os.getenv('WA_SEND_QR_TG', '').strip().lower() in ('1', 'true', 'yes')
+            sent_once = False
             while True:
                 try:
                     if _logged_in():
                         print("✅ Login berhasil.")
                         break
                     _capture_qr()
-                    now = time.time()
-                    if now - last_sent > 25:
-                        last_sent = now
+                    if qr_send_tg and not sent_once:
+                        sent_once = True
                         send_qr_to_telegram(qr_path)
                     page.wait_for_timeout(3000)
                 except Exception as e:
