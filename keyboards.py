@@ -53,8 +53,8 @@ def get_after_add_menu(visible: bool = True):
         ]
     return InlineKeyboardMarkup(keyboard)
 
-def get_feedback_menu(trans_id, visible: bool = True):
-    """Menu pada pesan feedback setelah mencatat: edit transaksi ini + toggle ▼/▲"""
+def get_feedback_menu(trans_id, visible: bool = False):
+    """Menu pada pesan feedback setelah mencatat: default tertutup (▼), dibuka via toggle"""
     if visible:
         keyboard = [
             [InlineKeyboardButton("✏️ Edit Transaksi Ini", callback_data=f"edit_{trans_id}")],
