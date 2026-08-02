@@ -362,14 +362,18 @@ def main():
     # biar QR tampil dan bisa di-scan langsung (WA blokir QR di headless).
     headless = os.getenv('WA_HEADLESS', '0').strip().lower() in ('1', 'true', 'yes')
 
+    # Lokal (headless=0) → pakai Google Chrome yang terpasang.
+    # Railway (headless=1) → tidak ada Chrome, pakai Chromium bawaan Playwright.
+    launch_kwargs = {
+        'headless': headless,
+        'args': ['--no-sandbox'],
+        'viewport': {'width': 1280, 'height': 720},
+    }
+    if not headless:
+        launch_kwargs['channel'] = 'chrome'
+
     with sync_playwright() as p:
-        context = p.chromium.launch_persistent_context(
-            SESSION_DIR,
-            headless=headless,
-            channel='chrome',          # pakai Google Chrome yang terpasang
-            args=['--no-sandbox'],
-            viewport={'width': 1280, 'height': 720},
-        )
+        context = p.chromium.launch_persistent_context(SESSION_DIR, **launch_kwargs)
         page = context.pages[0] if context.pages else context.new_page()
         page.goto('https://web.whatsapp.com')
 
