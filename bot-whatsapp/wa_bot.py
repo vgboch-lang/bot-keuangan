@@ -444,21 +444,22 @@ def main():
             except Exception as e:
                 print("⚠️ Gagal simpan QR:", e)
 
-            # Refresh QR berkala sampai login berhasil (QR WA berganti ~20 detik,
-            # jadi file harus selalu update agar bisa di-scan).
-            deadline = time.time() + 180
-            while time.time() < deadline:
-                if _logged_in():
-                    print("✅ Login berhasil.")
-                    break
+            # Tunggu login TANPA batas waktu — QR terus di-refresh & server QR tetap
+            # jalan, sehingga pengguna bisa scan kapan saja (tidak timeout 180 detik).
+            while True:
                 try:
+                    if _logged_in():
+                        print("✅ Login berhasil.")
+                        break
                     _capture_qr()
-                except Exception:
-                    pass
-                page.wait_for_timeout(3000)
-            else:
-                print("❌ Timeout menunggu login. Coba lagi.")
-                return
+                    page.wait_for_timeout(3000)
+                except Exception as e:
+                    print("⚠️ Menunggu login (retry):", e)
+                    try:
+                        page.wait_for_timeout(5000)
+                    except Exception:
+                        print("❌ Browser tertutup. Keluar agar container restart.")
+                        return
 
         # ===== LOOP PESAN =====
         print("✅ Bot aktif. Menunggu pesan...")
