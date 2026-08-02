@@ -35,9 +35,10 @@ if TEST_MODE:
 
 from playwright.sync_api import sync_playwright
 
-from core.config import DATABASE_FILE
+from core.config import DATABASE_FILE, CATEGORY_DISPLAY
 from core.database import (
-    init_db, save_transaction, get_transactions, get_summary, get_transaction_months
+    init_db, save_transaction, get_transactions, get_summary, get_transaction_months,
+    get_transaction_by_id, update_transaction, delete_transaction
 )
 from core.parser import parse_transaction
 from core.utils import format_rupiah, format_date
@@ -67,16 +68,31 @@ def get_wa_user_id() -> int:
             return int(v)
     return 1000000001
 
+
+# ===== EDIT INTERAKTIF =====
+# State per user untuk flow: edit → pilih nomor → kirim nilai baru
+EDIT_STATE = {}
+CATEGORY_KEYS = list(CATEGORY_DISPLAY.keys())
+
 HELP_TEXT = (
-    "❓ Panduan Bot Catat Keuangan (WhatsApp)\n\n"
-    "📝 Catat: kirim chat bebas\n"
+    "❓ *Panduan Lengkap Bot Catat Keuangan (WhatsApp)*\n\n"
+    "📝 *1. Mencatat Transaksi*\n"
+    "Kirim chat bebas, contoh:\n"
     "• 'makan siang 25rb' → pengeluaran\n"
-    "• 'gaji 4jt' → pemasukan\n\n"
-    "📊 Rekap Hari Ini (teks di chat):\n"
-    "• ketik: 'rekap'\n"
-    "• atau: 'rekap hari ini' / 'rekap hariini'\n\n"
-    "🗓️ rekap mingguan & bulanan → hanya tersedia di Telegram (PDF)\n"
-    "❓ bantuan → panduan ini"
+    "• 'gaji 4jt' → pemasukan\n"
+    "• 'gojek 15rb dan kopi 5rb' → 2 transaksi sekaligus\n\n"
+    "📊 *2. Rekap Hari Ini (teks di chat)*\n"
+    "• 'rekap' / 'rekap hari ini' / 'rekap hariini' → rekap harian\n\n"
+    "✏️ *3. Edit & Hapus Transaksi*\n"
+    "• 'edit' → pilih transaksi dari daftar\n"
+    "• 'edit 12 makan 30k' → ubah langsung\n"
+    "• 'kategori transport' → ganti kategori saja\n"
+    "• 'hapus 12' → hapus transaksi\n\n"
+    "❓ *4. Bantuan*\n"
+    "• 'bantuan' / 'help' → panduan ini\n\n"
+    "💡 *Tips:* Semua data tersimpan otomatis di database, "
+    "tergabung dengan data Telegram.\n"
+    "🗓️ Rekap mingguan/bulanan & PDF hanya tersedia di Telegram."
 )
 
 
@@ -98,10 +114,10 @@ def format_today(user_id):
     for t in rows:
         if t['type'] == 'income':
             t_inc += t['amount']
-            lines.append(f"💰 {t['item']} — {format_rupiah(t['amount'])}")
+            lines.append(f"💰 [#{t['id']}] {t['item']} — {format_rupiah(t['amount'])}")
         else:
             t_exp += t['amount']
-            lines.append(f"💸 {t['item']} — {format_rupiah(t['amount'])}")
+            lines.append(f"💸 [#{t['id']}] {t['item']} — {format_rupiah(t['amount'])}")
     lines.append("")
     lines.append(f"Total Pengeluaran: {format_rupiah(t_exp)}")
     lines.append(f"Total Pemasukan: {format_rupiah(t_inc)}")
@@ -132,7 +148,7 @@ def format_recap(user_id, start, end, label):
         for cat in sorted(exp, key=lambda c: -sum(x['amount'] for x in exp[c])):
             lines.append(f"\n  {cat.capitalize()}:")
             for t in exp[cat]:
-                lines.append(f"    • {t['item']} — {format_rupiah(t['amount'])}")
+                lines.append(f"    • [#{t['id']}] {t['item']} — {format_rupiah(t['amount'])}")
             lines.append(f"    Subtotal: {format_rupiah(sum(x['amount'] for x in exp[cat]))}")
         lines.append(f"\n  Total Pengeluaran: {format_rupiah(total_exp)}")
     if inc:
@@ -141,7 +157,7 @@ def format_recap(user_id, start, end, label):
         for cat in sorted(inc, key=lambda c: -sum(x['amount'] for x in inc[c])):
             lines.append(f"\n  {cat.capitalize()}:")
             for t in inc[cat]:
-                lines.append(f"    • {t['item']} — {format_rupiah(t['amount'])}")
+                lines.append(f"    • [#{t['id']}] {t['item']} — {format_rupiah(t['amount'])}")
             lines.append(f"    Subtotal: {format_rupiah(sum(x['amount'] for x in inc[cat]))}")
         lines.append(f"\n  Total Pemasukan: {format_rupiah(total_inc)}")
     return "\n".join(lines)
@@ -162,6 +178,57 @@ def handle_text(text: str, user_id: int):
     low = text.lower().lstrip('/')  # terima perintah tanpa tanda '/'
     first = low.split()[0] if low.split() else ''
 
+    # ===== LANJUTAN FLOW EDIT INTERAKTIF =====
+    st = EDIT_STATE.get(user_id)
+    if st and st.get('step') == 'choose' and text.strip().isdigit():
+        num = int(text.strip())
+        choices = st['choices']
+        if num not in choices:
+            return "❌ Nomor tidak ada di daftar. Ketik nomor yang benar."
+        trans_id = choices[num]
+        txn = get_transaction_by_id(user_id, trans_id)
+        if not txn:
+            EDIT_STATE.pop(user_id, None)
+            return "❌ Transaksi tidak ditemukan."
+        EDIT_STATE[user_id] = {'step': 'new_value', 'trans_id': trans_id}
+        cat_disp = CATEGORY_DISPLAY.get(txn['category'], txn['category'])
+        return (f"✏️ Transaksi #{trans_id}: {txn['item']} — {format_rupiah(txn['amount'])} ({cat_disp})\n"
+                f"Kirim deskripsi baru (mis. 'makan 30k')\n"
+                f"atau 'kategori <nama>' untuk ganti kategori.")
+    if st and st.get('step') == 'new_value':
+        EDIT_STATE.pop(user_id, None)
+        trans_id = st['trans_id']
+        txn = get_transaction_by_id(user_id, trans_id)
+        if not txn:
+            return "❌ Transaksi tidak ditemukan."
+        if low.startswith('kategori '):
+            cat = low.split('kategori ', 1)[1].strip()
+            if cat not in CATEGORY_KEYS:
+                return "❌ Kategori tidak dikenal. Pilihan: " + ', '.join(CATEGORY_KEYS)
+            update_transaction(user_id, trans_id, 'category', cat, txn['category'])
+            return f"✅ Kategori transaksi #{trans_id} → {CATEGORY_DISPLAY.get(cat, cat)}."
+        results = parse_transaction(text)
+        if not results:
+            return ("❌ Tidak ada nominal.\nKirim deskripsi baru mis. 'makan 30k',\n"
+                    "atau 'kategori <nama>' untuk ganti kategori.")
+        r = results[0]
+        done = []
+        if r.get('amount'):
+            update_transaction(user_id, trans_id, 'amount', r['amount'], txn['amount'])
+            done.append('nominal')
+        if r.get('item'):
+            update_transaction(user_id, trans_id, 'item', r['item'], txn['item'])
+            done.append('item')
+        if r.get('category') and r['category'] != txn['category']:
+            update_transaction(user_id, trans_id, 'category', r['category'], txn['category'])
+            done.append('kategori')
+        if not done:
+            return "❌ Tidak ada yang diubah."
+        new_item = r.get('item', txn['item'])
+        new_amt = r.get('amount', txn['amount'])
+        return (f"✅ Transaksi #{trans_id} diubah ({', '.join(done)}).\n"
+                f"Sekarang: {new_item} — {format_rupiah(new_amt)}")
+
     if low in ('bantuan', 'help'):
         return HELP_TEXT
 
@@ -176,6 +243,67 @@ def handle_text(text: str, user_id: int):
         if 'mingguan' in low or 'bulanan' in low:
             return "🗓️ Rekap mingguan/bulanan hanya tersedia di Telegram (PDF).\nDi WhatsApp cukup: 'rekap' / 'rekap hari ini' → rekap teks."
         return format_recap(user_id, today, today, 'Harian')
+
+    # ===== EDIT / HAPUS TRANSAKSI =====
+    if first in ('edit', 'ubah'):
+        parts = text.split(None, 2)
+        if len(parts) >= 2 and parts[1].isdigit():
+            trans_id = int(parts[1])
+            txn = get_transaction_by_id(user_id, trans_id)
+            if not txn:
+                return "❌ Transaksi #" + parts[1] + " tidak ditemukan."
+            if len(parts) >= 3:
+                # edit langsung: 'edit 12 makan 25rb'
+                results = parse_transaction(parts[2])
+                if not results:
+                    return "❌ Format edit tidak valid.\nContoh: edit 12 makan 25rb"
+                r = results[0]
+                done = []
+                if r.get('amount'):
+                    update_transaction(user_id, trans_id, 'amount', r['amount'], txn['amount'])
+                    done.append('nominal')
+                if r.get('item'):
+                    update_transaction(user_id, trans_id, 'item', r['item'], txn['item'])
+                    done.append('item')
+                if r.get('category') and r['category'] != txn['category']:
+                    update_transaction(user_id, trans_id, 'category', r['category'], txn['category'])
+                    done.append('kategori')
+                if not done:
+                    return "❌ Tidak ada yang diubah."
+                new_amt = r.get('amount', txn['amount'])
+                new_item = r.get('item', txn['item'])
+                return (f"✅ Transaksi #{trans_id} diubah ({', '.join(done)}).\n"
+                        f"Sekarang: {new_item} — {format_rupiah(new_amt)}")
+            # 'edit <id>' saja → minta nilai baru
+            cat_disp = CATEGORY_DISPLAY.get(txn['category'], txn['category'])
+            EDIT_STATE[user_id] = {'step': 'new_value', 'trans_id': trans_id}
+            return (f"✏️ Transaksi #{trans_id}: {txn['item']} — {format_rupiah(txn['amount'])} ({cat_disp})\n"
+                    f"Kirim deskripsi baru (mis. 'makan 30k')\n"
+                    f"atau 'kategori <nama>' untuk ganti kategori.")
+        # 'edit' saja → daftar interaktif
+        today = datetime.now().date().isoformat()
+        rows = get_transactions(user_id, '2000-01-01', today)
+        rows = rows[:10]  # 10 terbaru
+        if not rows:
+            return "📭 Belum ada transaksi untuk diedit."
+        choices = {}
+        lines = ["✏️ Pilih transaksi yang mau diedit:\n"]
+        for i, t in enumerate(rows, 1):
+            choices[i] = t['id']
+            cat_disp = CATEGORY_DISPLAY.get(t['category'], t['category'])
+            lines.append(f"{i}) [#{t['id']}] {t['item']} — {format_rupiah(t['amount'])} ({cat_disp})")
+        lines.append("\nketik nomor yang mau di-edit")
+        EDIT_STATE[user_id] = {'step': 'choose', 'choices': choices}
+        return "\n".join(lines)
+
+    if first in ('hapus', 'delete'):
+        parts = text.split()
+        if len(parts) >= 2 and parts[1].isdigit():
+            trans_id = int(parts[1])
+            if delete_transaction(user_id, trans_id):
+                return f"🗑️ Transaksi #{trans_id} dihapus."
+            return "❌ Transaksi #" + parts[1] + " tidak ditemukan."
+        return "❌ Format: hapus <nomor>\nContoh: hapus 12"
 
     # default: catat transaksi
     results = parse_transaction(text)
