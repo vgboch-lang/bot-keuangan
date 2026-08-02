@@ -50,14 +50,19 @@ Jika `WA_ALLOWED` kosong → hanya `WA_OWNER` yang boleh.
 
 ## ☁️ Deploy di Railway (service terpisah dari bot Telegram)
 
-1. Service baru → pilih **root directory**: `bot-whatsapp`.
-2. **Variables**: `WA_OWNER`, `WA_ALLOWED`.
-3. **Volume**: pasang di `/app/data` (SAMA dengan service Telegram agar data digabung).
+1. **Service baru** → deploy dari repo GitHub, **Root Directory**: `bot-whatsapp`.
+2. **Variables** yang perlu di-set:
+   - `WA_USER_ID` → ID Telegram kamu (agar data tergabung dengan Telegram)
+   - `WA_HEADLESS=1`
+   - (opsional) `WA_OWNER`, `WA_ALLOWED`
+3. **Volume**: pasang di **`/app/data`** — pakai volume yang **SAMA dengan service Telegram** (attach volume yang sama).
 4. **Start command**: `pip install -r requirements.txt && playwright install chromium && python wa_bot.py`
-5. Lihat log → scan QR pertama kali (simpan `qr_login.png`/screenshot dari log atau volume).
+5. **Public Networking → Generate Domain** untuk **port 8787** → buka domain itu di browser untuk melihat & **scan QR** pertama kali.
+6. Setelah scan, session tersimpan di `/app/data/wa_session` (persisten) → tidak perlu scan lagi.
 
-> Catatan: karena bot berjalan di server, HP **tidak perlu nyala terus** — session tersimpan di volume.
-> HP hanya perlu nyala saat **scan QR awal** atau **re-link** (kalau session hilang).
+> Database otomatis memakai `/app/data/finance.db` (Railway set `RAILWAY_ENVIRONMENT`),
+> jadi **satu file yang sama dengan Telegram** → transaksi dari keduanya otomatis tergabung.
+> HP tidak perlu nyala terus; hanya perlu saat **scan QR awal** atau **re-link**.
 
 ## 🔁 Migrasi ke nomor WhatsApp baru (kalau nomor lama di-blokir)
 
@@ -71,10 +76,12 @@ Jika `WA_ALLOWED` kosong → hanya `WA_OWNER` yang boleh.
 
 - Ketik bebas: `makan siang 25rb`, `gaji 4jt`, `gojek 15rb`
 - `pengeluaran` → daftar transaksi hari ini
-- `rekap harian` | `rekap mingguan` | `rekap bulanan` → **rekap dalam bentuk chat (teks)**
+- `rekap` | `rekap hari ini` | `rekap hariini` → rekap harian (teks di chat)
+- `edit` → pilih & ubah transaksi (atau `edit 12 makan 30k`, `kategori transport`)
+- `hapus 12` → hapus transaksi
 - `bantuan` → panduan
 
-> Tanda `/` tetap bisa dipakai (mis. `/rekap bulanan`).
+> Tanda `/` tetap bisa dipakai (mis. `/rekap`). Rekap mingguan/bulanan & PDF hanya di Telegram.
 
 ---
 

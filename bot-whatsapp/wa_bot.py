@@ -24,7 +24,13 @@ from datetime import datetime
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SESSION_DIR = os.path.join(BASE_DIR, 'wa_session')
+
+# Di Railway: simpan session login & QR di volume /app/data agar PERSISTEN
+# (tidak hilang saat restart) dan satu volume yang sama dengan bot Telegram
+# → data otomatis tergabung.
+DATA_DIR = '/app/data' if os.getenv('RAILWAY_ENVIRONMENT') else BASE_DIR
+SESSION_DIR = os.path.join(DATA_DIR, 'wa_session')
+QR_PATH = os.path.join(DATA_DIR, 'qr_login.png')
 
 # Mode tes: WA_TEST_MODE=1 → pakai database terpisah finance_test.db (lokal),
 # supaya tes tidak menyentuh data asli finance.db. WAJIB di-set SEBELUM import
@@ -163,12 +169,26 @@ def format_recap(user_id, start, end, label):
     return "\n".join(lines)
 
 
+class _QRFileHandler(SimpleHTTPRequestHandler):
+    """Hanya melayani file QR — tidak mengekspos isi direktori (aman)."""
+    def do_GET(self):
+        if self.path.split('?')[0] not in ('/', '/qr_login.png', '/favicon.ico'):
+            self.send_error(404)
+            return
+        self.path = '/qr_login.png'
+        super().do_GET()
+
+    def log_message(self, *args):
+        pass
+
+
 def start_qr_server(qr_path):
-    """Sajikan file QR lewat HTTP lokal agar mudah dibuka/diunduh dari browser"""
+    """Sajikan file QR lewat HTTP (lokal / publik di Railway)."""
     d = os.path.dirname(qr_path)
-    handler = functools.partial(SimpleHTTPRequestHandler, directory=d)
-    server = HTTPServer(('127.0.0.1', 8787), handler)
-    print(f"🌐 Buka / unduh QR di browser: http://127.0.0.1:8787/{os.path.basename(qr_path)}")
+    handler = functools.partial(_QRFileHandler, directory=d)
+    host = '0.0.0.0' if os.getenv('RAILWAY_ENVIRONMENT') else '127.0.0.1'
+    server = HTTPServer((host, 8787), handler)
+    print(f"🌐 Buka / unduh QR: http://{host}:8787/qr_login.png")
     server.serve_forever()
 
 
@@ -355,7 +375,7 @@ def main():
 
         # ===== LOGIN (QR) =====
         print("⏳ Menunggu login WhatsApp Web...")
-        qr_path = os.path.join(BASE_DIR, 'qr_login.png')
+        qr_path = QR_PATH
 
         def _logged_in():
             """Deteksi sudah login via beberapa selector umum UI WhatsApp Web."""
