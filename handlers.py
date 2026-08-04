@@ -410,7 +410,8 @@ def format_recap_text(user_id: int, start, end, label: str) -> str:
             lines.append(f"\n  {cat_name}:")
             for t in exp[cat]:
                 lines.append(f"    • {t['item']} — {format_rupiah(t['amount'])}")
-            lines.append(f"    Subtotal: {format_rupiah(sum(x['amount'] for x in exp[cat]))}")
+            if len(exp[cat]) > 1:
+                lines.append(f"    Subtotal: {format_rupiah(sum(x['amount'] for x in exp[cat]))}")
         lines.append(f"\n  Total Pengeluaran: {format_rupiah(total_exp)}")
     if inc:
         lines.append("")
@@ -420,7 +421,8 @@ def format_recap_text(user_id: int, start, end, label: str) -> str:
             lines.append(f"\n  {cat_name}:")
             for t in inc[cat]:
                 lines.append(f"    • {t['item']} — {format_rupiah(t['amount'])}")
-            lines.append(f"    Subtotal: {format_rupiah(sum(x['amount'] for x in inc[cat]))}")
+            if len(inc[cat]) > 1:
+                lines.append(f"    Subtotal: {format_rupiah(sum(x['amount'] for x in inc[cat]))}")
         lines.append(f"\n  Total Pemasukan: {format_rupiah(total_inc)}")
     return "\n".join(lines)
 
