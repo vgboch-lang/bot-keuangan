@@ -4,3 +4,4 @@ requests==2.31.0
 matplotlib==3.8.2
 reportlab==4.0.9
 apscheduler==3.10.4
+# redeploy trigger 2026-08-13 (no functional change)
