@@ -309,7 +309,8 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
             story.append(Paragraph("Detail Pemasukan", heading_style))
             pemasukan_data = [['#', 'Tanggal', 'Kategori', 'Item', 'Nominal']]
             total_pemasukan = 0
-            for i, item in enumerate(data['pemasukan'], 1):
+            # Urutan kronologis: paling lama di atas, paling baru di bawah
+            for i, item in enumerate(reversed(data['pemasukan']), 1):
                 total_pemasukan += item['nominal']
                 pemasukan_data.append([
                     str(i),
@@ -371,7 +372,8 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
         col_widths_5col = [TABLE_WIDTH*0.08, TABLE_WIDTH*0.17, TABLE_WIDTH*0.17, TABLE_WIDTH*0.33, TABLE_WIDTH*0.25]
         pengeluaran_data = [['#', 'Tanggal', 'Kategori', 'Item', 'Nominal']]
         total_pengeluaran = 0
-        for i, item in enumerate(data['pengeluaran'], 1):
+        # Urutan kronologis: paling lama di atas, paling baru di bawah
+        for i, item in enumerate(reversed(data['pengeluaran']), 1):
             total_pengeluaran += item['nominal']
             pengeluaran_data.append([
                 str(i),

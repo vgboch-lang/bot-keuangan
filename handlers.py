@@ -58,7 +58,8 @@ HELP_TEXT = (
     "• /myid → lihat User ID kamu\n\n"
     "💬 <b>Rekap via chat biasa:</b>\n"
     "• 'rekap' / 'rekap hari ini' / 'rekap hariini' → rekap harian (teks di chat)\n"
-    "• 'rekap mingguan' / 'rekap bulanan' → PDF\n\n"
+    "• 'rekap mingguan' / 'rekap bulanan' → PDF\n"
+    "• 'total bulanan' / 'total mingguan' / 'total hari ini' → ringkas total pengeluaran\n\n"
     "🧠 <b>4. Bot Bisa Belajar</b>\n"
     "Kalau kategori salah, edit manual lewat ✏️ Edit Transaksi.\n"
     "Bot akan mengingat & memakai kategori itu untuk kata serupa.\n\n"
@@ -359,11 +360,16 @@ def format_today_transactions(user_id: int) -> Optional[str]:
     shown = 0
     max_items = 20
 
+    # Ambil 20 transaksi terbaru, lalu tampilkan paling baru di bawah (kronologis)
+    display_items = []
     for t in transactions:
         if t['type'] == 'investment':
             continue  # fitur investasi sudah dihapus
-        if shown >= max_items:
+        if len(display_items) >= max_items:
             break
+        display_items.append(t)
+
+    for t in reversed(display_items):
         cat = CATEGORY_DISPLAY.get(t['category'], t['category'].capitalize())
         if t['type'] == 'income':
             total_income += t['amount']
@@ -453,6 +459,36 @@ def learn_from_item(item: str, category: str):
     for word in item.split():
         if len(word) > 2:
             save_keyword_learn(word, type_, category)
+
+# ==================== TOTAL PERIODE (CHAT) ====================
+
+async def handle_total_command(update: Update, context: ContextTypes.DEFAULT_TYPE, low: str):
+    """Trigger 'total bulanan' / 'total mingguan' / 'total hari ini' → ringkas pengeluaran."""
+    user_id = update.effective_user.id
+    today = datetime.now().date()
+
+    if 'minggu' in low:
+        start = today - timedelta(days=today.weekday())
+        label = "Minggu Ini"
+    elif 'hari' in low:
+        start = today
+        label = "Hari Ini"
+    else:  # default: bulan ini
+        start = today.replace(day=1)
+        label = "Bulan Ini"
+
+    summary = get_summary(user_id, start.isoformat(), today.isoformat())
+    total = summary['total_expense']
+
+    msg = (
+        f"📊 <b>Total Pengeluaran {label}</b>\n"
+        f"{format_date(start)} – {format_date(today)}\n\n"
+        f"💸 Kamu habis <b>{format_rupiah(total)}</b>"
+    )
+    if summary['total_income'] > 0:
+        msg += f"\n💰 Pemasukan: {format_rupiah(summary['total_income'])}"
+        msg += f"\n🏦 Saldo: {format_rupiah(summary['balance'])}"
+    await update.message.reply_text(msg, parse_mode=ParseMode.HTML, reply_markup=get_main_keyboard())
 
 # ==================== HANDLE MESSAGE ====================
 
@@ -612,6 +648,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_today_transactions(update, context)
         return
 
+    # ===== TRIGGER 'TOTAL' → ringkas pengeluaran periode =====
+    if first == 'total':
+        await handle_total_command(update, context, low)
+        return
+
     # Proses transaksi
     logger.info(f"🔄 Memanggil process_transaction untuk: {text[:50]}...")
     await process_transaction(update, context, text)
@@ -666,6 +707,17 @@ async def process_transaction(update: Update, context: ContextTypes.DEFAULT_TYPE
             for i, r in enumerate(saved, 1):
                 cat_name = CATEGORY_DISPLAY.get(r['category'], r['category'].capitalize())
                 msg += f"{i}. {cat_name} {format_rupiah(r['amount'])} - {r['item']}\n"
+
+            # Total di bawah daftar
+            total_expense = sum(r['amount'] for r in saved if r['type'] != 'income')
+            total_income = sum(r['amount'] for r in saved if r['type'] == 'income')
+            if total_expense > 0 and total_income > 0:
+                msg += f"\n💸 Total Pengeluaran: {format_rupiah(total_expense)}\n"
+                msg += f"💰 Total Pemasukan: {format_rupiah(total_income)}\n"
+            elif total_income > 0:
+                msg += f"\n💰 Total Pemasukan: {format_rupiah(total_income)}\n"
+            else:
+                msg += f"\n💸 Total Pengeluaran: {format_rupiah(total_expense)}\n"
         
         # Kirim pesan transaksi dan simpan referensi
         last_id = saved[-1]['id'] if saved else None
