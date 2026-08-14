@@ -126,8 +126,10 @@ def init_db():
 
     conn.commit()
 
-    # ===== SEED KEYWORD =====
-    seed_keywords(cursor)
+    # ===== SEED KEYWORD (hanya jika tabel kosong, biar start cepat) =====
+    cursor.execute('SELECT COUNT(*) AS n FROM category_keywords')
+    if cursor.fetchone()['n'] == 0:
+        seed_keywords(cursor)
 
     conn.commit()
     conn.close()
@@ -233,7 +235,13 @@ def get_transaction_by_id(user_id: int, trans_id: int) -> Optional[Dict]:
     conn.close()
     return dict(row) if row else None
 
+# Whitelist kolom yang boleh di-update (anti SQL injection via nama kolom)
+_ALLOWED_TRANSACTION_FIELDS = {'item', 'amount', 'category'}
+
+
 def update_transaction(user_id: int, trans_id: int, field: str, new_value: Any, old_value: Any = None) -> bool:
+    if field not in _ALLOWED_TRANSACTION_FIELDS:
+        raise ValueError(f"Field tidak diizinkan: {field}")
     conn = get_db()
     cursor = conn.cursor()
 
@@ -453,7 +461,16 @@ def get_user_settings(user_id: int) -> Dict:
 
 
 
+_BUDGET_CATEGORIES = {
+    'makanan', 'jajanan', 'minuman', 'rokok', 'transport', 'belanja',
+    'tagihan', 'hiburan', 'kesehatan', 'pendidikan', 'lainnya'
+}
+_ALLOWED_SETTING_KEYS = {'report_time', 'income_target'} | {f'budget_{c}' for c in _BUDGET_CATEGORIES}
+
+
 def update_user_setting(user_id: int, key: str, value):
+    if key not in _ALLOWED_SETTING_KEYS:
+        raise ValueError(f"Setting tidak diizinkan: {key}")
     conn = get_db()
     cursor = conn.cursor()
 
@@ -519,27 +536,6 @@ def is_owner(user_id: int) -> bool:
     """Cek apakah user adalah pemilik bot"""
     from config import OWNER_ID
     return bool(OWNER_ID) and user_id == OWNER_ID
-
-def is_authorized(user_id: int) -> bool:
-    """Cek akses: owner / whitelist / trial aktif. Jika OWNER_ID belum diset, semua boleh."""
-    from config import OWNER_ID
-    if not OWNER_ID:
-        return True
-    if user_id == OWNER_ID:
-        return True
-    conn = get_db()
-    try:
-        cursor = conn.cursor()
-        cursor.execute('SELECT 1 FROM authorized_users WHERE user_id = ?', (user_id,))
-        if cursor.fetchone():
-            return True
-        cursor.execute('SELECT expires_at FROM trial_users WHERE user_id = ?', (user_id,))
-        row = cursor.fetchone()
-        if row and datetime.fromisoformat(row['expires_at']) > datetime.now():
-            return True
-        return False
-    finally:
-        conn.close()
 
 def is_owner_or_approved(user_id: int) -> bool:
     """Owner atau sudah di whitelist (bukan trial)"""

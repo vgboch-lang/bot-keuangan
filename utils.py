@@ -70,80 +70,50 @@ def parse_nominal(text: str) -> Optional[int]:
     return None
 
 # ==================== DETECT CATEGORY ====================
+
+# Cache pola regex (di-compile sekali) agar deteksi kategori lebih cepat
+# saat dipanggil berulang kali (CATEGORIES ~1100 keyword).
+_PATTERN_CACHE = {}
+
+
+def _cached_patterns(category_keywords: Dict):
+    cid = id(category_keywords)
+    entry = _PATTERN_CACHE.get(cid)
+    if entry is None or entry[0] is not category_keywords:
+        patterns = [
+            (re.compile(r'\b' + re.escape(kw.lower()) + r'\b'), kw.lower(), cat)
+            for cat, kws in category_keywords.items()
+            for kw in kws
+        ]
+        _PATTERN_CACHE[cid] = (category_keywords, patterns)
+    return _PATTERN_CACHE[cid][1]
+
+
 def detect_category(text: str, category_keywords: Dict, default: str = 'lainnya') -> str:
     """
     Deteksi kategori dari text
     Prioritas: keyword terpanjang > keyword pendek
     """
     text = text.lower().strip()
-    best_match = None
     best_category = default
     best_length = 0
-    
-    for category, keywords in category_keywords.items():
-        for keyword in keywords:
-            keyword_lower = keyword.lower()
-            # Cek apakah keyword ada di text (whole word)
-            # Gunakan word boundary biar lebih akurat
-            pattern = r'\b' + re.escape(keyword_lower) + r'\b'
-            if re.search(pattern, text):
-                if len(keyword_lower) > best_length:
-                    best_length = len(keyword_lower)
-                    best_category = category
-                    best_match = keyword_lower
-    
-    # Kalau tidak ketemu dengan word boundary, coba partial match
+
+    # Pass 1: word boundary (keyword utuh)
+    for pattern, keyword_lower, category in _cached_patterns(category_keywords):
+        if pattern.search(text) and len(keyword_lower) > best_length:
+            best_length = len(keyword_lower)
+            best_category = category
+
+    # Pass 2: kalau tidak ketemu, coba partial match (substring)
     if best_category == default:
         for category, keywords in category_keywords.items():
             for keyword in keywords:
                 keyword_lower = keyword.lower()
-                if keyword_lower in text:
-                    if len(keyword_lower) > best_length:
-                        best_length = len(keyword_lower)
-                        best_category = category
-    
-    return best_category
+                if keyword_lower in text and len(keyword_lower) > best_length:
+                    best_length = len(keyword_lower)
+                    best_category = category
 
-# ==================== EXTRACT ITEM ====================
-def extract_item(text: str, stop_words: list, default: str = "transaksi") -> str:
-    """
-    Ekstrak item dari text
-    1. Hapus nominal
-    2. Hapus kata kerja (stop words) - tapi hati-hati
-    3. Bersihkan spasi
-    """
-    text = text.strip()
-    
-    # Hapus nominal (angka + satuan)
-    text = re.sub(r'\d+[.,]?\d*\s*(jt|juta|m|mil|rb|ribu|k|k-an)', '', text, flags=re.IGNORECASE)
-    # Hapus angka doang
-    text = re.sub(r'\d+[.,]?\d*', '', text)
-    
-    # Hapus stop words (kata kerja) - tapi hati-hati
-    # Hapus yang di awal kata
-    for word in stop_words:
-        pattern = r'^' + re.escape(word.lower()) + r'\s+'
-        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
-    
-    # Hapus yang di tengah (dengan spasi)
-    for word in stop_words:
-        pattern = r'\s+' + re.escape(word.lower()) + r'\s+'
-        text = re.sub(pattern, ' ', text, flags=re.IGNORECASE)
-        # Hapus di akhir
-        pattern = r'\s+' + re.escape(word.lower()) + r'$'
-        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
-    
-    # Hapus kata "investasi" dari awal item
-    text = re.sub(r'^investasi\s+', '', text, flags=re.IGNORECASE)
-    
-    # Bersihkan spasi berlebih
-    text = re.sub(r'\s+', ' ', text).strip()
-    
-    # Kalau kosong, pakai default
-    if not text:
-        return default
-    
-    return text
+    return best_category
 
 # ==================== SPLIT MULTI TRANSACTIONS ====================
 def split_multi_transactions(text: str, separators: list) -> List[str]:
@@ -170,18 +140,6 @@ def split_multi_transactions(text: str, separators: list) -> List[str]:
 
     # Filter out empty parts
     return [p for p in parts if p]
-
-# ==================== GET CATEGORY TYPE ====================
-def get_category_type(category: str) -> str:
-    """
-    Tentukan type (income/expense/investment) dari kategori
-    """
-    income_categories = ['income']
-    
-    if category in income_categories:
-        return 'income'
-    else:
-        return 'expense'
 
 # ==================== DETECT TYPE ====================
 def detect_type(text: str, categories: dict) -> str:
@@ -264,43 +222,3 @@ def format_date(date) -> str:
     if hasattr(date, 'strftime'):
         return date.strftime("%d %B %Y")
     return str(date)
-
-# ==================== GET DATE RANGE ====================
-def get_date_range(period: str):
-    """Dapatkan range tanggal untuk berbagai periode"""
-    today = datetime.now().date()
-    
-    if period == 'today':
-        return today, today
-    elif period == 'yesterday':
-        yesterday = today - timedelta(days=1)
-        return yesterday, yesterday
-    elif period == 'week':
-        start = today - timedelta(days=today.weekday())
-        return start, today
-    elif period == 'month':
-        start = today.replace(day=1)
-        return start, today
-    else:
-        return today, today
-
-# ==================== TRUNCATE TEXT ====================
-def truncate_text(text: str, max_length: int = 50) -> str:
-    if len(text) > max_length:
-        return text[:max_length] + "..."
-    return text
-
-# ==================== CALCULATE PERCENTAGE ====================
-def calculate_percentage(current: int, previous: int) -> float:
-    if previous == 0:
-        return 0
-    return ((current - previous) / previous) * 100
-
-# ==================== FORMAT PERCENTAGE ====================
-def format_percentage(value: float) -> str:
-    if value > 0:
-        return f"▲ +{value:.1f}%"
-    elif value < 0:
-        return f"▼ {value:.1f}%"
-    else:
-        return "━ 0%"

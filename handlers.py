@@ -26,7 +26,7 @@ from keyboards import (
 )
 from parser import parse_transaction
 from report import generate_pdf_report
-from utils import format_rupiah, get_date_range, format_date
+from utils import format_rupiah, format_date
 from config import CATEGORY_DISPLAY, TRIAL_DAYS
 
 logger = logging.getLogger(__name__)
@@ -1222,7 +1222,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text = f"""
 ✏️ <b>Edit Transaksi #{trans_id}</b>
 
-📝 Item: {transaction['item']}
+📝 Item: {escape(transaction['item'])}
 📂 Kategori: {CATEGORY_DISPLAY.get(transaction['category'], transaction['category'])}
 💰 Nominal: {format_rupiah(transaction['amount'])}
 📅 Tanggal: {format_date(transaction['date'])}
@@ -1254,7 +1254,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = f"""
 ✏️ <b>Edit Transaksi #{trans_id}</b>
 
-📝 Item: {transaction['item']}
+📝 Item: {escape(transaction['item'])}
 📂 Kategori: {CATEGORY_DISPLAY.get(transaction['category'], transaction['category'])}
 💰 Nominal: {format_rupiah(transaction['amount'])}
 📅 Tanggal: {format_date(transaction['date'])}
@@ -1508,29 +1508,8 @@ async def auto_morning_report():
 
 
 
-async def settings_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    query = update.callback_query
-    settings = get_user_settings(user_id)
-    
-    text = """
-⚙️ <b>Settings</b>
-
-💰 Di sini kamu bisa mengatur budget bulanan 
-dan waktu laporan otomatis. Semua nominal adalah per bulan.
-
-📅 <b>Waktu Laporan Otomatis:</b> {}
-""".format(settings.get('report_time', '20:00'))
-
-
-
-    
-    # Budget per kategori (tampilkan "Belum diatur" jika 0)
-# ==================== SETTINGS MENU ====================
-async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    settings = get_user_settings(user_id)
-
+def build_settings_text(settings) -> str:
+    """Teks menu Settings (dipakai reply keyboard & versi inline)"""
     text = """
 ⚙️ <b>Settings</b>
 
@@ -1571,9 +1550,32 @@ dan waktu laporan otomatis. Semua nominal adalah per bulan.
 • Target Pemasukan = target pemasukan per bulan
 • Laporan otomatis dikirim setiap hari jam yang kamu atur
 """
+    return text
 
+
+# ==================== SETTINGS MENU ====================
+async def settings_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Versi INLINE (callback) menu Settings."""
+    user_id = update.effective_user.id
+    query = update.callback_query
+    settings = get_user_settings(user_id)
+    try:
+        await query.answer()
+    except Exception:
+        pass
+    await query.edit_message_text(
+        build_settings_text(settings),
+        parse_mode=ParseMode.HTML,
+        reply_markup=get_settings_menu()
+    )
+
+
+async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Versi reply keyboard menu Settings."""
+    user_id = update.effective_user.id
+    settings = get_user_settings(user_id)
     await update.message.reply_text(
-        text,
+        build_settings_text(settings),
         parse_mode=ParseMode.HTML,
         reply_markup=get_settings_menu()
     )

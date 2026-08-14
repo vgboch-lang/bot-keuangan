@@ -28,9 +28,8 @@ else:
     DATABASE_FILE = os.getenv("DATABASE_FILE", "finance.db")
 print(f"📁 Database file: {DATABASE_FILE}")
 
-# Report settings
+# Report settings (jam mengikuti variabel Railway — di Railway efektif UTC)
 REPORT_TIME = os.getenv("REPORT_TIME", "21:00")
-TIMEZONE = "Asia/Jakarta"
 
 # Akses kontrol (opsional): isi OWNER_ID dengan user_id Telegram kamu untuk mengaktifkan whitelist
 OWNER_ID = int(os.getenv("OWNER_ID", "0") or 0)

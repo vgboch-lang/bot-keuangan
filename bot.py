@@ -99,7 +99,7 @@ def main():
     logger.info(f"📅 Today: {datetime.now().strftime('%d %B %Y %H:%M')}")
     
     # Start polling
-    application.run_polling(allowed_updates=["message", "callback_query"])
+    application.run_polling(allowed_updates=["message", "callback_query"], drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()

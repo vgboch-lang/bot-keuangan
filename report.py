@@ -179,7 +179,9 @@ def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
         file_date = end_date.strftime('%d-%m-%y')
     
     os.makedirs('reports', exist_ok=True)
-    filename = f"reports/Laporan_{label}_{file_date}.pdf"
+    # Sertakan timestamp agar file tidak tabrakan/tertimpa jika 2 laporan
+    # periode sama dibuat berdekatan (mis. manual + auto penutupan).
+    filename = f"reports/Laporan_{label}_{file_date}_{int(time.time())}.pdf"
     
     doc = SimpleDocTemplate(
         filename,

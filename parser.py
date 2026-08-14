@@ -10,8 +10,7 @@ from config import (
 )
 from utils import (
     parse_nominal, detect_type, detect_category,
-    detect_income_category,
-    extract_item, parse_date
+    detect_income_category
 )
 from database import get_keyword_category, save_keyword
 
@@ -264,35 +263,3 @@ def parse_transaction(text: str, use_db: bool = True) -> List[Dict]:
         return []
     
     return results
-
-# ==================== PARSE CUSTOM DATE ====================
-
-def parse_custom_date(text: str) -> Optional[Dict]:
-    """
-    Parse rekap custom date dari chat
-    Contoh: "rekap 01/07/2026 sampai 12/07/2026"
-    """
-    text = text.lower().strip()
-    
-    patterns = [
-        r'(?:rekap|laporan|pdf|lihat|tampilkan)\s+(.+?)\s+(?:sampai|ke|sd|s/d|-)\s+(.+)',
-        r'(?:rekap|laporan|pdf|lihat|tampilkan)\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s*(?:-|sampai|sd|s/d)\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})',
-        r'(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s*(?:-|sampai|sd|s/d)\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})'
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, text)
-        if match:
-            start_text = match.group(1).strip()
-            end_text = match.group(2).strip()
-            
-            start_date = parse_date(start_text)
-            end_date = parse_date(end_text)
-            
-            if start_date and end_date:
-                return {
-                    'start': start_date.date(),
-                    'end': end_date.date()
-                }
-    
-    return None
