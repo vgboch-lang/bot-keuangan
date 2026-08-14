@@ -2,6 +2,7 @@ import os
 import re
 import calendar
 import logging
+from html import escape
 from typing import Optional
 from datetime import datetime, timedelta, date
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -42,8 +43,8 @@ HELP_TEXT = (
     "🧭 <b>2. Tombol di bawah (Reply Keyboard)</b>\n"
     "• 📝 Catat Cepat → panduan mencatat\n"
     "• 💰 Pemasukan → catat pemasukan\n"
-    "• � Pengeluaran Hari Ini → daftar transaksi hari ini\n"
-    "• 📊 PDF Rekap Harian → laporan PDF hari ini\n"
+    "• 📋 Pengeluaran Hari Ini → daftar transaksi hari ini\n"
+    "• 📊 PDF Rekap Harian → laporan PDF hari ini (caption berisi daftar pengeluaran)\n"
     "• 📈 PDF Rekap Mingguan → laporan PDF minggu ini\n"
     "• 📉 PDF Rekap Bulanan → laporan PDF bulan ini\n"
     "• 📅 Bulan Berjalan → laporan tgl 1 sampai hari ini\n"
@@ -59,7 +60,12 @@ HELP_TEXT = (
     "💬 <b>Rekap via chat biasa:</b>\n"
     "• 'rekap' / 'rekap hari ini' / 'rekap hariini' → rekap harian (teks di chat)\n"
     "• 'rekap mingguan' / 'rekap bulanan' → PDF\n"
+    "• 'pengeluaran' / 'pengeluaran hari ini' → daftar transaksi hari ini\n"
+    "• 'riwayat' → menu riwayat bulan\n"
     "• 'total bulanan' / 'total mingguan' / 'total hari ini' → ringkas total pengeluaran\n\n"
+    "📅 <b>Rekap penutupan otomatis:</b>\n"
+    "• Setiap Minggu jam 04:00 → PDF rekap mingguan\n"
+    "• Tanggal terakhir bulan jam 04:00 → PDF rekap bulanan\n\n"
     "🧠 <b>4. Bot Bisa Belajar</b>\n"
     "Kalau kategori salah, edit manual lewat ✏️ Edit Transaksi.\n"
     "Bot akan mengingat & memakai kategori itu untuk kata serupa.\n\n"
@@ -301,28 +307,32 @@ async def generate_report(update: Update, context: ContextTypes.DEFAULT_TYPE, pe
         )
         return
     
+    # Caption PDF: utk rekap harian, gabungkan daftar transaksi hari ini agar
+    # tombol & rekap otomatis hasilnya SAMA (limit caption Telegram 1024 karakter).
+    caption = f"📊 Laporan {label}\n{format_date(start_date)} - {format_date(end_date)}"
+    if period == 'today':
+        today_text = format_today_transactions(user_id, max_chars=900, include_header=False)
+        if today_text:
+            caption += f"\n\n{today_text}"
+
     # Kirim PDF
     with open(filename, 'rb') as f:
         if is_callback:
             await update.effective_chat.send_document(
                 document=f,
                 filename=os.path.basename(filename),
-                caption=f"📊 Laporan {label}\n{format_date(start_date)} - {format_date(end_date)}",
+                caption=caption,
+                parse_mode=ParseMode.HTML,
                 reply_markup=get_after_report_menu(visible=False)
             )
         else:
             await update.message.reply_document(
                 document=f,
                 filename=os.path.basename(filename),
-                caption=f"📊 Laporan {label}\n{format_date(start_date)} - {format_date(end_date)}",
+                caption=caption,
+                parse_mode=ParseMode.HTML,
                 reply_markup=get_after_report_menu(visible=False)
             )
-    
-    # Kirim daftar transaksi di chat (khusus laporan harian)
-    if period == 'today':
-        text_list = format_today_transactions(user_id)
-        if text_list:
-            await update.effective_chat.send_message(text_list, parse_mode=ParseMode.HTML)
     
     # Reply keyboard
     if is_callback:
@@ -344,50 +354,68 @@ async def generate_report(update: Update, context: ContextTypes.DEFAULT_TYPE, pe
 
 # ==================== TRANSAKSI HARI INI (DI CHAT) ====================
 
-def format_today_transactions(user_id: int) -> Optional[str]:
-    """Format daftar transaksi hari ini (pengeluaran + pemasukan) untuk chat"""
+def format_today_transactions(user_id: int, max_chars: int = 0, include_header: bool = True) -> Optional[str]:
+    """Format daftar transaksi hari ini (pengeluaran + pemasukan) untuk chat.
+
+    - max_chars > 0 → batasi panjang teks (dipakai saat digabung ke caption PDF,
+      karena limit caption Telegram 1024 karakter).
+    - include_header=False → tanpa baris judul 'Pengeluaran Hari Ini' (utk caption PDF).
+    """
     today = datetime.now().date().isoformat()
     transactions = get_transactions(user_id, today, today)
 
     if not transactions:
         return None
 
+    active = [t for t in transactions if t['type'] != 'investment']
+    if not active:
+        return None
+
     date_label = datetime.now().strftime('%d %B %Y')
-    lines = [f"📋 <b>Pengeluaran Hari Ini</b> — {date_label}\n"]
+    header = f"📋 <b>Pengeluaran Hari Ini</b> — {date_label}\n" if include_header else ""
 
-    total_expense = 0
-    total_income = 0
-    shown = 0
-    max_items = 20
+    # Total dihitung dari SEMUA transaksi hari ini (bukan cuma yang ditampilkan)
+    total_expense = sum(t['amount'] for t in active if t['type'] != 'income')
+    total_income = sum(t['amount'] for t in active if t['type'] == 'income')
 
-    # Ambil 20 transaksi terbaru, lalu tampilkan paling baru di bawah (kronologis)
-    display_items = []
-    for t in transactions:
-        if t['type'] == 'investment':
-            continue  # fitur investasi sudah dihapus
-        if len(display_items) >= max_items:
-            break
-        display_items.append(t)
+    footer = (
+        "\n"
+        f"Total Pengeluaran: {format_rupiah(total_expense)}\n"
+        f"Total Pemasukan: {format_rupiah(total_income)}"
+    )
+    max_body = (max_chars - len(header) - len(footer)) if max_chars else None
 
-    for t in reversed(display_items):
+    def item_line(t):
         cat = CATEGORY_DISPLAY.get(t['category'], t['category'].capitalize())
+        item = escape(t['item'])
         if t['type'] == 'income':
-            total_income += t['amount']
-            lines.append(f"💰 {t['item']} <i>({cat})</i> — {format_rupiah(t['amount'])}")
-        else:
-            total_expense += t['amount']
-            lines.append(f"💸 {t['item']} <i>({cat})</i> — {format_rupiah(t['amount'])}")
-        shown += 1
+            return f"💰 {item} <i>({cat})</i> — {format_rupiah(t['amount'])}"
+        return f"💸 {item} <i>({cat})</i> — {format_rupiah(t['amount'])}"
 
-    active_count = len([t for t in transactions if t['type'] != 'investment'])
-    remaining = active_count - shown
+    # Item dari yang paling baru di bawah (kronologis: lama di atas, baru di bawah)
+    body_lines = []
+    used = 0
+    max_items = 20
+    for t in reversed(active):
+        if len(body_lines) >= max_items:
+            break
+        line = item_line(t)
+        if max_body is not None:
+            extra = len(line) + (1 if body_lines else 0)  # newline antar item
+            if used + extra > max_body and body_lines:
+                break
+            used += extra
+        body_lines.append(line)
+
+    shown = len(body_lines)
+    remaining = len(active) - shown
     if remaining > 0:
-        lines.append(f"\n…dan {remaining} transaksi lainnya")
+        extra_line = f"\n…dan {remaining} transaksi lainnya"
+        if max_body is None or used + len(extra_line) <= max_body:
+            body_lines.append(extra_line)
 
-    lines.append("")
-    lines.append(f"Total Pengeluaran: {format_rupiah(total_expense)}")
-    lines.append(f"Total Pemasukan: {format_rupiah(total_income)}")
-    return "\n".join(lines)
+    parts = ([header] if header else []) + body_lines + [footer]
+    return "\n".join(parts)
 
 
 def format_recap_text(user_id: int, start, end, label: str) -> str:
@@ -1148,9 +1176,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             update_transaction(user_id, trans_id, 'category', category, old_data['category'])
             # Belajar: simpan mapping keyword → kategori agar otomatis ke depannya
             learn_from_item(old_data['item'], category)
-            # Kembali ke detail transaksi
+            # Kembali ke detail transaksi (tampilkan nama item biar jelas)
             await query.edit_message_text(
-                f"✅ Kategori diubah menjadi {CATEGORY_DISPLAY.get(category, category)}\n🧠 Bot sudah belajar, lain kali otomatis.",
+                f"✅ Kategori untuk <b>'{escape(old_data['item'])}'</b> diubah menjadi {CATEGORY_DISPLAY.get(category, category)}\n🧠 Bot sudah belajar, lain kali otomatis.",
+                parse_mode=ParseMode.HTML,
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("↩️ Kembali", callback_data=f"back_to_edit_{trans_id}")]
                 ])
@@ -1389,38 +1418,93 @@ async def show_edit_menu_callback(update: Update, context: ContextTypes.DEFAULT_
 
 
 
-# ==================== AUTO REPORT ====================
+# ==================== AUTO REPORT PAGI (1 JADWAL) ====================
 
-async def auto_report():
-    """Kirim laporan otomatis setiap hari ke semua user"""
+async def auto_morning_report():
+    """Laporan pagi otomatis ke semua user (satu jadwal, jam REPORT_TIME):
+    - SELALU kirim laporan harian
+    - + Rekap Penutupan Mingguan tiap hari Minggu
+    - + Rekap Penutupan Bulanan tiap tanggal terakhir bulan
+    Saat ada >1 laporan (misal tgl terakhir bulan jatuh di Minggu), kirim
+    pesan intro dulu lalu kirim semua PDF berurutan.
+    """
     from telegram import Bot
     from config import BOT_TOKEN
     from database import get_all_users
     from report import generate_pdf_report
     from utils import format_date
-    
+
     bot = Bot(token=BOT_TOKEN)
     users = get_all_users()
-    
+    today = datetime.now().date()
+
+    is_sunday = today.weekday() == 6
+    is_last_day = today.day == calendar.monthrange(today.year, today.month)[1]
+
+    label_map = {
+        'harian': '📊 Harian',
+        'mingguan': '📈 Mingguan',
+        'bulanan': '📉 Bulanan',
+    }
+
     for user_id in users:
         try:
-            today = datetime.now().date()
-            period = 'today'
-            label = 'Harian'
-            date_str = today.strftime('%d-%m-%y')
-            filename = generate_pdf_report(user_id, today, today, period, label, date_str)
+            docs = []  # (key, filename, caption) — hanya yang punya data
+
+            # 1) HARIAN (selalu)
+            filename = generate_pdf_report(user_id, today, today, 'today', 'Harian', today.strftime('%d-%m-%y'))
             if filename:
+                caption = f"📊 Laporan Harian\n{format_date(today)}"
+                today_text = format_today_transactions(user_id, max_chars=900, include_header=False)
+                if today_text:
+                    caption += f"\n\n{today_text}"
+                docs.append(('harian', filename, caption))
+
+            # 2) PENUTUPAN MINGGUAN (tiap Minggu)
+            if is_sunday:
+                start = today - timedelta(days=today.weekday())
+                filename = generate_pdf_report(user_id, start, today, 'week', 'Mingguan', start.strftime('%d-%m-%y'))
+                if filename:
+                    docs.append((
+                        'mingguan', filename,
+                        f"📊 Rekap Penutupan Mingguan\n{format_date(start)} - {format_date(today)}"
+                    ))
+
+            # 3) PENUTUPAN BULANAN (tgl terakhir bulan)
+            if is_last_day:
+                start = today.replace(day=1)
+                filename = generate_pdf_report(user_id, start, today, 'month_to_date', 'Bulanan', start.strftime('%d-%m-%y'))
+                if filename:
+                    docs.append((
+                        'bulanan', filename,
+                        f"📊 Rekap Penutupan Bulanan\n{format_date(start)} - {format_date(today)}"
+                    ))
+
+            if not docs:
+                continue
+
+            # Intro kalau ada >1 laporan
+            if len(docs) > 1:
+                intro = "📦 <b>Rekap Penutupan</b> — {} laporan dikirim:\n{}".format(
+                    len(docs),
+                    "\n".join(f"• {label_map[k]}" for k, _, _ in docs)
+                )
+                await bot.send_message(chat_id=user_id, text=intro, parse_mode=ParseMode.HTML)
+
+            # Kirim semua PDF berurutan (harian → mingguan → bulanan)
+            for _, filename, caption in docs:
                 with open(filename, 'rb') as f:
                     await bot.send_document(
                         chat_id=user_id,
                         document=f,
                         filename=os.path.basename(filename),
-                        caption=f"📊 Laporan Harian\n{format_date(today)}"
+                        caption=caption,
+                        parse_mode=ParseMode.HTML
                     )
                 os.remove(filename)
-        except Exception as e:
-            print(f"Auto report error for {user_id}: {e}")
 
+        except Exception as e:
+            print(f"Auto morning report error for {user_id}: {e}")
 
 
 

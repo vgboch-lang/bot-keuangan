@@ -11,7 +11,7 @@ from database import init_db
 from keyboards import get_main_keyboard
 from handlers import (
     start_command, help_command, handle_message, handle_callback,
-    auto_report, generate_report, allow_command, deny_command, users_command,
+    auto_morning_report, generate_report, allow_command, deny_command, users_command,
     authorized_only
 )
 from utils import format_date
@@ -87,10 +87,12 @@ def main():
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # Scheduler untuk auto report
+    # Scheduler laporan pagi otomatis (1 jadwal, jam REPORT_TIME):
+    # selalu harian; + mingguan tiap Minggu; + bulanan tgl terakhir bulan.
+    # Di Railway jam cron efektif UTC → ikut jam REPORT_TIME (variabel, sudah benar ~04-05 pagi WIB).
     scheduler = AsyncIOScheduler()
     hour, minute = map(int, REPORT_TIME.split(':'))
-    scheduler.add_job(auto_report, CronTrigger(hour=hour, minute=minute))
+    scheduler.add_job(auto_morning_report, CronTrigger(hour=hour, minute=minute))
     scheduler.start()
     
     logger.info(f"🤖 Bot started! Auto report at {REPORT_TIME}")
