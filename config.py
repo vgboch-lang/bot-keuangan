@@ -317,6 +317,58 @@ CATEGORY_KEYWORDS = {
         'transport', 'jalan', 'perjalanan', 'travel'
     ],
 
+
+    # ========== 6. 💻 TEKNOLOGI ==========
+    'teknologi': [
+        # Perangkat utama
+        'hp', 'handphone', 'smartphone', 'iphone', 'android',
+        'laptop', 'notebook', 'macbook', 'pc', 'komputer', 'desktop',
+        'tablet', 'ipad', 'monitor', 'layar',
+        
+        # Periferal & aksesoris
+        'keyboard', 'mouse', 'headset', 'headphone', 'earphone',
+        'webcam', 'microphone', 'mikrofon', 'speaker',
+        'charger', 'adaptor', 'adapter', 'kabel data', 'kabel usb',
+        'powerbank', 'hub usb', 'usb hub', 'flashdisk', 'flash drive',
+        'ssd', 'hdd', 'harddisk', 'hard disk', 'ram', 'gpu', 'vga',
+        'processor', 'prosesor', 'motherboard', 'router', 'modem',
+        'printer', 'scanner', 'kamera', 'drone',
+        
+        # Software & layanan digital
+        'software', 'aplikasi', 'app', 'lisensi software', 'license',
+        'windows', 'macos', 'office', 'microsoft 365', 'adobe',
+        'canva', 'figma', 'notion', 'plugin', 'theme', 'template',
+        
+        # AI & API
+        'ai', 'artificial intelligence', 'openai', 'chatgpt',
+        'claude', 'deepseek', 'gemini', 'qwen', 'anthropic',
+        'api', 'ai api', 'api key', 'token api', 'llm',
+        'embedding', 'inference', 'model ai',
+        
+        # Hosting, VPS, server & domain
+        'vps', 'server', 'hosting', 'web hosting', 'cloud hosting',
+        'cloud', 'cloud server', 'dedicated server', 'virtual server',
+        'railway', 'interserver', 'jagoan hosting',
+        'domain', 'domain name', 'ssl', 'ssl certificate',
+        'letsencrypt', 'cdn', 'storage', 'cloud storage',
+        'google drive', 'dropbox', 'onedrive',
+        
+        # Internet & developer tools
+        'github', 'gitlab', 'bitbucket', 'vercel', 'netlify',
+        'database', 'serverless', 'developer', 'developer tools',
+        'digitalocean', 'aws', 'amazon web services', 'azure',
+        'google cloud', 'firebase', 'supabase',
+        
+        # Langganan digital & layanan teknologi
+        'subscription software', 'software subscription',
+        'saas', 'digital service', 'layanan digital',
+        'cloudflare', 'email hosting', 'email domain',
+        
+        # Umum
+        'teknologi', 'teknologi informasi', 'perangkat teknologi',
+        'elektronik komputer', 'aksesoris komputer'
+    ],
+
     # ========== 6. 🛒 BELANJA ==========
     'belanja': [
         # Pakaian
@@ -591,6 +643,7 @@ CATEGORY_DISPLAY = {
     'rokok': '🚬 Rokok',
     'transport': '🚗 Transport',
     'belanja': '🛒 Belanja',
+    'teknologi': '💻 Teknologi',
     'tagihan': '📄 Tagihan',
     'hiburan': '🎮 Hiburan',
     'kesehatan': '💊 Kesehatan',
@@ -607,6 +660,7 @@ DEFAULT_BUDGET = {
     "rokok": 300000,
     "transport": 500000,
     "belanja": 1000000,
+    "teknologi": 1000000,
     "tagihan": 1500000,
     "hiburan": 500000,
     "kesehatan": 300000,
