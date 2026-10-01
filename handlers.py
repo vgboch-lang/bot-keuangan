@@ -1156,6 +1156,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("🎮 Hiburan", callback_data=f"cat_{trans_id}_hiburan")],
             [InlineKeyboardButton("💊 Kesehatan", callback_data=f"cat_{trans_id}_kesehatan"),
              InlineKeyboardButton("📚 Pendidikan", callback_data=f"cat_{trans_id}_pendidikan")],
+            [InlineKeyboardButton("💻 Teknologi", callback_data=f"cat_{trans_id}_teknologi")],
             [InlineKeyboardButton("💰 Pemasukan", callback_data=f"cat_{trans_id}_income")],
             [InlineKeyboardButton("📦 Lainnya", callback_data=f"cat_{trans_id}_lainnya")],
             [InlineKeyboardButton("↩️ Batal", callback_data=f"back_to_edit_{trans_id}")]
