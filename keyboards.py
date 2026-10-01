@@ -109,6 +109,7 @@ def get_budget_menu():
          InlineKeyboardButton("🎮 Hiburan", callback_data="budget_hiburan")],
         [InlineKeyboardButton("💊 Kesehatan", callback_data="budget_kesehatan"), 
          InlineKeyboardButton("📚 Pendidikan", callback_data="budget_pendidikan")],
+        [InlineKeyboardButton("💻 Teknologi", callback_data="budget_teknologi")],
         [InlineKeyboardButton("↩️ Kembali", callback_data="settings")]
     ]
     return InlineKeyboardMarkup(keyboard)
