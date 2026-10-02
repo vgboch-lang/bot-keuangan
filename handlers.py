@@ -25,7 +25,7 @@ from keyboards import (
     get_hidden_menu, get_hidden_edit_menu
 )
 from parser import parse_transaction
-from report import generate_pdf_report, generate_rembes_nota_pdf
+from report import generate_pdf_report, generate_rembes_nota_pdf, generate_category_pdf
 from utils import format_rupiah, format_date
 from config import CATEGORY_DISPLAY, TRIAL_DAYS
 
@@ -527,13 +527,41 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     logger.info(f"📩 Pesan dari {user_id}: {text}")
     
-    # ===== PDF KHUSUS REMBES NOTA =====
+    # ===== PDF KATEGORI =====
     normalized = re.sub(r'\s+', ' ', text.strip().lower())
-    if normalized in ('pdf rembes nota', 'rembes nota pdf', 'pdf rembes'):
-        filename = generate_rembes_nota_pdf(user_id)
+    category_aliases = {
+        'makan': 'makanan',
+        'makanan': 'makanan',
+        'jajan': 'jajanan',
+        'jajanan': 'jajanan',
+        'minum': 'minuman',
+        'minuman': 'minuman',
+        'transportasi': 'transport',
+        'transport': 'transport',
+        'belanja': 'belanja',
+        'teknologi': 'teknologi',
+        'tagihan': 'tagihan',
+        'hiburan': 'hiburan',
+        'kesehatan': 'kesehatan',
+        'pendidikan': 'pendidikan',
+        'lainnya': 'lainnya',
+        'rembes nota': 'rembes_nota',
+        'rembes': 'rembes_nota',
+    }
+    category_key = None
+    if normalized.startswith('pdf '):
+        requested = normalized[4:].strip()
+        category_key = category_aliases.get(requested)
+    elif normalized.endswith(' pdf'):
+        requested = normalized[:-4].strip()
+        category_key = category_aliases.get(requested)
+
+    if category_key:
+        from report import generate_category_pdf
+        filename = generate_category_pdf(user_id, category_key)
         if not filename:
             await update.message.reply_text(
-                "📭 Belum ada transaksi Rembes Nota.",
+                f"📭 Belum ada transaksi kategori {category_key}.",
                 reply_markup=get_main_keyboard()
             )
             return
@@ -542,7 +570,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_document(
                 document=f,
                 filename=os.path.basename(filename),
-                caption="🧾 Rekap Rembes Nota — semua transaksi yang item-nya diawali 'rembes nota'.",
+                caption=f"📊 Rekap kategori — {category_key.replace('_', ' ').title()}",
                 reply_markup=get_main_keyboard()
             )
         try:
