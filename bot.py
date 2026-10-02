@@ -15,6 +15,7 @@ from handlers import (
     authorized_only
 )
 from utils import format_date
+from backup import manual_backup, monthly_backup
 
 # Setup logging
 logging.basicConfig(
@@ -40,6 +41,7 @@ def main():
     application.add_handler(CommandHandler("allow", allow_command))
     application.add_handler(CommandHandler("deny", deny_command))
     application.add_handler(CommandHandler("users", users_command))
+    application.add_handler(CommandHandler("backup", manual_backup))
     
     # Command: myid (lihat user id sendiri, tidak butuh izin)
     async def myid_command(update, context):
@@ -93,9 +95,12 @@ def main():
     scheduler = AsyncIOScheduler()
     hour, minute = map(int, REPORT_TIME.split(':'))
     scheduler.add_job(auto_morning_report, CronTrigger(hour=hour, minute=minute))
+    # Backup kumulatif otomatis setiap tanggal 1 pada jam laporan.
+    scheduler.add_job(monthly_backup, CronTrigger(day=1, hour=hour, minute=minute))
     scheduler.start()
     
     logger.info(f"🤖 Bot started! Auto report at {REPORT_TIME}")
+    logger.info("🗃️ Monthly cumulative backup enabled (day 1).")
     logger.info(f"📅 Today: {datetime.now().strftime('%d %B %Y %H:%M')}")
     
     # Start polling
