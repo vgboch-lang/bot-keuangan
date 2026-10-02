@@ -23,7 +23,8 @@ from database import (
     get_report_data_optimized,
     get_summary,
     get_previous_month_summary,
-    get_previous_week_summary
+    get_previous_week_summary,
+    get_rembes_nota_transactions
 )
 
 # ============ SETUP LOKAL ============
@@ -130,6 +131,90 @@ def _on_later_pages(canvas, doc):
     canvas.drawString(74.29, h - 38, "LAPORAN KEUANGAN")
     canvas.restoreState()
     _draw_footer(canvas, doc)
+
+# ============ GENERATE PDF REMBES NOTA ============
+
+def generate_rembes_nota_pdf(user_id):
+    """Generate PDF khusus semua transaksi yang diawali 'rembes nota'."""
+    rows = get_rembes_nota_transactions(user_id)
+    if not rows:
+        return None
+
+    total = sum(row['amount'] for row in rows)
+
+    os.makedirs('reports', exist_ok=True)
+    filename = os.path.join(
+        'reports',
+        f"rembes_nota_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'RembesNotaTitle',
+        parent=styles['Title'],
+        fontName='Helvetica-Bold',
+        fontSize=18,
+        textColor=COLOR_NAVY,
+        alignment=TA_CENTER,
+        spaceAfter=8
+    )
+    sub_style = ParagraphStyle(
+        'RembesNotaSub',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=COLOR_GRAY_TEXT,
+        alignment=TA_CENTER,
+        spaceAfter=14
+    )
+
+    story = [
+        Paragraph("REKAP REMBES NOTA", title_style),
+        Paragraph(
+            f"Semua transaksi dengan item diawali 'rembes nota' • "
+            f"{len(rows)} transaksi",
+            sub_style
+        )
+    ]
+
+    table_data = [['Tanggal', 'Item', 'Nominal']]
+    for row in rows:
+        table_data.append([
+            format_date(row['date']),
+            row['item'],
+            format_rupiah(row['amount'])
+        ])
+    table_data.append(['', 'TOTAL', format_rupiah(total)])
+
+    table = Table(table_data, colWidths=[85, 275, 86], repeatRows=1)
+    table.setStyle(_style_table(
+        len(table_data),
+        body_size=8,
+        right_cols=(2,),
+        total_row=True
+    ))
+    story.append(table)
+    story.append(Spacer(1, 12))
+    story.append(Paragraph(
+        f"<b>Total Rembes Nota:</b> {format_rupiah(total)}",
+        ParagraphStyle(
+            'RembesNotaTotal',
+            parent=styles['Normal'],
+            fontSize=11,
+            alignment=TA_RIGHT
+        )
+    ))
+
+    doc = SimpleDocTemplate(
+        filename,
+        pagesize=A4,
+        rightMargin=74.29,
+        leftMargin=74.29,
+        topMargin=58,
+        bottomMargin=58
+    )
+    doc.build(story, onFirstPage=_on_first_page, onLaterPages=_on_later_pages)
+    return filename
+
 
 # ============ GENERATE PDF REPORT ============
 def generate_pdf_report(user_id, start_date, end_date, period, label, date_str):
