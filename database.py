@@ -311,6 +311,23 @@ def delete_transaction(user_id: int, trans_id: int) -> bool:
     conn.close()
     return True
 
+def get_rembes_nota_transactions(user_id: int) -> List[Dict]:
+    """Ambil semua transaksi yang item-nya diawali 'rembes nota'."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT * FROM transactions
+        WHERE user_id = ?
+          AND is_deleted = 0
+          AND type = 'expense'
+          AND lower(trim(item)) LIKE 'rembes nota%'
+        ORDER BY date ASC, id ASC
+    ''', (user_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
 def get_transaction_history(user_id: int, trans_id: int) -> List[Dict]:
     conn = get_db()
     cursor = conn.cursor()
