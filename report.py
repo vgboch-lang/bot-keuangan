@@ -24,7 +24,8 @@ from database import (
     get_summary,
     get_previous_month_summary,
     get_previous_week_summary,
-    get_rembes_nota_transactions
+    get_rembes_nota_transactions,
+    get_transactions
 )
 
 # ============ SETUP LOKAL ============
@@ -211,6 +212,75 @@ def generate_rembes_nota_pdf(user_id):
         leftMargin=74.29,
         topMargin=58,
         bottomMargin=58
+    )
+    doc.build(story, onFirstPage=_on_first_page, onLaterPages=_on_later_pages)
+    return filename
+
+
+# ============ GENERATE PDF KATEGORI ============
+
+def generate_category_pdf(user_id, category):
+    """Generate PDF semua pengeluaran dalam satu kategori."""
+    today = datetime.now().date()
+    rows = get_transactions(user_id, "2000-01-01", today.isoformat(), type_filter="expense")
+    rows = [r for r in rows if r.get('category') == category]
+    if not rows:
+        return None
+
+    total = sum(row['amount'] for row in rows)
+    category_name = {
+        'makanan': 'MAKANAN', 'jajanan': 'JAJANAN', 'minuman': 'MINUMAN',
+        'rokok': 'ROKOK', 'transport': 'TRANSPORT', 'belanja': 'BELANJA',
+        'teknologi': 'TEKNOLOGI', 'tagihan': 'TAGIHAN', 'hiburan': 'HIBURAN',
+        'kesehatan': 'KESEHATAN', 'pendidikan': 'PENDIDIKAN',
+        'rembes_nota': 'REMBES NOTA', 'lainnya': 'LAINNYA'
+    }.get(category, category.upper())
+
+    safe_category = re.sub(r'[^a-z0-9_]+', '_', category.lower()).strip('_')
+    os.makedirs('reports', exist_ok=True)
+    filename = os.path.join(
+        'reports',
+        f"kategori_{safe_category}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CategoryTitle', parent=styles['Title'], fontName='Helvetica-Bold',
+        fontSize=18, textColor=COLOR_NAVY, alignment=TA_CENTER, spaceAfter=8
+    )
+    sub_style = ParagraphStyle(
+        'CategorySub', parent=styles['Normal'], fontSize=9,
+        textColor=COLOR_GRAY_TEXT, alignment=TA_CENTER, spaceAfter=14
+    )
+
+    story = [
+        Paragraph(f"REKAP {category_name}", title_style),
+        Paragraph(f"Semua pengeluaran kategori {category_name.title()} • {len(rows)} transaksi", sub_style)
+    ]
+
+    table_data = [['Tanggal', 'Item', 'Nominal']]
+    for row in rows:
+        table_data.append([
+            format_date(row['date']),
+            row['item'],
+            format_rupiah(row['amount'])
+        ])
+    table_data.append(['', 'TOTAL', format_rupiah(total)])
+
+    table = Table(table_data, colWidths=[85, 275, 86], repeatRows=1)
+    table.setStyle(_style_table(
+        len(table_data), body_size=8, right_cols=(2,), total_row=True
+    ))
+    story.append(table)
+    story.append(Spacer(1, 12))
+    story.append(Paragraph(
+        f"<b>Total {category_name.title()}:</b> {format_rupiah(total)}",
+        ParagraphStyle('CategoryTotal', parent=styles['Normal'], fontSize=11, alignment=TA_RIGHT)
+    ))
+
+    doc = SimpleDocTemplate(
+        filename, pagesize=A4, rightMargin=74.29, leftMargin=74.29,
+        topMargin=58, bottomMargin=58
     )
     doc.build(story, onFirstPage=_on_first_page, onLaterPages=_on_later_pages)
     return filename
