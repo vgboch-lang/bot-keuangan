@@ -253,10 +253,9 @@ def parse_transaction(text: str, use_db: bool = True) -> List[Dict]:
             # Rembes Nota adalah kategori khusus berbasis prefix.
             # Jangan biarkan keyword barang seperti "plastik" mengubahnya
             # kembali ke kategori belanja.
-            is_rembes_nota = re.match(
-                r'^\\s*rembes\\s+nota\\b',
-                result['item'],
-                re.IGNORECASE
+            is_rembes_nota = (
+                result.get('category') == 'rembes_nota' or
+                re.match(r'^\\s*rembes\\s+nota\\b', result['item'], re.IGNORECASE)
             )
             if is_rembes_nota:
                 result['type'] = 'expense'
@@ -268,10 +267,6 @@ def parse_transaction(text: str, use_db: bool = True) -> List[Dict]:
                     result['type'] = db_type
                     result['category'] = db_category
                 
-                # Simpan keyword baru jika berbeda
-                if db_result[1] != result['item']:
-                    save_keyword(result['item'], db_type, db_category)
-        
         # Auto-learning: simpan keyword baru ke database
         if result.get('item'):
             existing = get_keyword_category(result['item'].lower())
