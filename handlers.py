@@ -25,7 +25,7 @@ from keyboards import (
     get_hidden_menu, get_hidden_edit_menu
 )
 from parser import parse_transaction
-from report import generate_pdf_report
+from report import generate_pdf_report, generate_rembes_nota_pdf
 from utils import format_rupiah, format_date
 from config import CATEGORY_DISPLAY, TRIAL_DAYS
 
@@ -526,6 +526,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     
     logger.info(f"📩 Pesan dari {user_id}: {text}")
+    
+    # ===== PDF KHUSUS REMBES NOTA =====
+    normalized = re.sub(r'\s+', ' ', text.strip().lower())
+    if normalized in ('pdf rembes nota', 'rembes nota pdf', 'pdf rembes'):
+        filename = generate_rembes_nota_pdf(user_id)
+        if not filename:
+            await update.message.reply_text(
+                "📭 Belum ada transaksi Rembes Nota.",
+                reply_markup=get_main_keyboard()
+            )
+            return
+
+        with open(filename, 'rb') as f:
+            await update.message.reply_document(
+                document=f,
+                filename=os.path.basename(filename),
+                caption="🧾 Rekap Rembes Nota — semua transaksi yang item-nya diawali 'rembes nota'.",
+                reply_markup=get_main_keyboard()
+            )
+        try:
+            os.remove(filename)
+        except Exception:
+            pass
+        return
     
     # ===== HANDLE EDIT INPUT =====
     if context.user_data.get('editing'):
@@ -1157,6 +1181,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("💊 Kesehatan", callback_data=f"cat_{trans_id}_kesehatan"),
              InlineKeyboardButton("📚 Pendidikan", callback_data=f"cat_{trans_id}_pendidikan")],
             [InlineKeyboardButton("💻 Teknologi", callback_data=f"cat_{trans_id}_teknologi")],
+            [InlineKeyboardButton("🧾 Rembes Nota", callback_data=f"cat_{trans_id}_rembes_nota")],
             [InlineKeyboardButton("💰 Pemasukan", callback_data=f"cat_{trans_id}_income")],
             [InlineKeyboardButton("📦 Lainnya", callback_data=f"cat_{trans_id}_lainnya")],
             [InlineKeyboardButton("↩️ Batal", callback_data=f"back_to_edit_{trans_id}")]
