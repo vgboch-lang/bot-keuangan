@@ -644,6 +644,7 @@ CATEGORY_DISPLAY = {
     'transport': '🚗 Transport',
     'belanja': '🛒 Belanja',
     'teknologi': '💻 Teknologi',
+    'rembes_nota': '🧾 Rembes Nota',
     'tagihan': '📄 Tagihan',
     'hiburan': '🎮 Hiburan',
     'kesehatan': '💊 Kesehatan',
