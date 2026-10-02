@@ -24,6 +24,24 @@ def parse_with_regex(text: str) -> Optional[Dict]:
     if not amount:
         return None
     
+    # FORMAT KHUSUS: "rembes nota <item> <nominal>"
+    # Semua kata setelah "rembes nota" sampai nominal terakhir adalah item.
+    rembes_match = re.match(
+        r'^\s*rembes\s+nota\s+(.+?)\s+(\d+[.,]?\d*\s*(?:jt|juta|m|mil|rb|ribu|k|k-an))\s*$',
+        text,
+        re.IGNORECASE
+    )
+    if rembes_match:
+        item_text = rembes_match.group(1).strip()
+        if item_text:
+            return {
+                'type': 'expense',
+                'amount': amount,
+                'category': 'rembes_nota',
+                'item': item_text,
+                'note': text
+            }
+
     type_ = detect_type(text, CATEGORIES)
     
     if type_ == "income":
