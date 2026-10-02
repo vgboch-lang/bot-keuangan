@@ -232,11 +232,23 @@ def parse_transaction(text: str, use_db: bool = True) -> List[Dict]:
     # Step 6: Cek keyword di database (auto-learning)
     for result in results:
         if use_db and result.get('item'):
-            db_result = check_keyword_in_db(result['item'])
-            if db_result:
-                db_type, db_category = db_result
-                result['type'] = db_type
-                result['category'] = db_category
+            # Rembes Nota adalah kategori khusus berbasis prefix.
+            # Jangan biarkan keyword barang seperti "plastik" mengubahnya
+            # kembali ke kategori belanja.
+            is_rembes_nota = re.match(
+                r'^\\s*rembes\\s+nota\\b',
+                result['item'],
+                re.IGNORECASE
+            )
+            if is_rembes_nota:
+                result['type'] = 'expense'
+                result['category'] = 'rembes_nota'
+            else:
+                db_result = check_keyword_in_db(result['item'])
+                if db_result:
+                    db_type, db_category = db_result
+                    result['type'] = db_type
+                    result['category'] = db_category
                 
                 # Simpan keyword baru jika berbeda
                 if db_result[1] != result['item']:
