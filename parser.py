@@ -29,7 +29,12 @@ def parse_with_regex(text: str) -> Optional[Dict]:
     if type_ == "income":
         category = detect_income_category(text)
     else:
-        category = detect_category(text, CATEGORIES)
+        # "Rembes Nota" adalah kategori khusus dan harus mengalahkan
+        # keyword umum seperti plastik/belanja agar mudah direkap khusus.
+        if re.match(r'^\\s*rembes\\s+nota\\b', text, re.IGNORECASE):
+            category = 'rembes_nota'
+        else:
+            category = detect_category(text, CATEGORIES)
     
     # Ambil item
     raw_item = re.sub(r'\d+[.,]?\d*\s*(jt|juta|m|mil|rb|ribu|k|k-an)', '', text, flags=re.IGNORECASE)
