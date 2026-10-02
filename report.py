@@ -4,6 +4,7 @@ reportlab.rl_config.shapeChecking = False
 
 # ============ IMPORT ============
 import os
+import re
 import locale
 import calendar
 import time
