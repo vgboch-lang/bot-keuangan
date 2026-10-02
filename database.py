@@ -320,7 +320,7 @@ def get_rembes_nota_transactions(user_id: int) -> List[Dict]:
         WHERE user_id = ?
           AND is_deleted = 0
           AND type = 'expense'
-          AND lower(trim(item)) LIKE 'rembes nota%'
+          AND (category = 'rembes_nota' OR lower(trim(item)) LIKE 'rembes nota%')
         ORDER BY date ASC, id ASC
     ''', (user_id,))
     rows = cursor.fetchall()
