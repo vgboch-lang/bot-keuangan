@@ -130,6 +130,10 @@ def split_multi_transactions(text: str, separators: list) -> List[str]:
                     new_parts.append(part)
                     continue
                 split_parts = re.split(pattern, part)
+            elif sep == ',':
+                # Koma di antara dua digit adalah desimal Indonesia (contoh 4,7k),
+                # jadi jangan dianggap sebagai pemisah transaksi.
+                split_parts = re.split(r'(?<!\d),(?!\d)', part)
             elif sep in part:
                 split_parts = part.split(sep)
             else:
