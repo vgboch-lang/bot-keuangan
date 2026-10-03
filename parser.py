@@ -10,7 +10,7 @@ from config import (
 )
 from utils import (
     parse_nominal, detect_type, detect_category,
-    detect_income_category
+    detect_income_category, split_multi_transactions
 )
 from database import get_keyword_category, save_keyword
 
@@ -159,24 +159,9 @@ def parse_multi_transactions(text: str) -> List[Dict]:
     """Parse multiple transaksi dalam satu chat"""
     text = text.strip()
     
-    parts = [text]
-    for sep in SEPARATORS:
-        new_parts = []
-        for part in parts:
-            if sep.isalpha():
-                # Separator berupa kata: harus kata utuh (hindari 'dan' di dalam 'padang')
-                pattern = r'\b' + re.escape(sep) + r'\b'
-                if not re.search(pattern, part):
-                    new_parts.append(part)
-                    continue
-                split_parts = re.split(pattern, part)
-            elif sep in part:
-                split_parts = part.split(sep)
-            else:
-                new_parts.append(part)
-                continue
-            new_parts.extend([p.strip() for p in split_parts if p.strip()])
-        parts = new_parts
+    # Gunakan splitter terpusat agar koma desimal Indonesia seperti 4,7k
+    # tidak dianggap sebagai pemisah transaksi.
+    parts = split_multi_transactions(text, SEPARATORS)
     
     results = []
     for part in parts:
