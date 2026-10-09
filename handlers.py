@@ -693,6 +693,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await settings_menu(update, context)
         return
     
+    elif text == "🗃️ Backup Data":
+        from backup import manual_backup
+        await manual_backup(update, context)
+        return
+    
     elif text == "❓ Bantuan":
         await help_command(update, context)
         return
@@ -1034,6 +1039,27 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     logger.info(f"📌 Callback: {data}")
     
+    # ===== BACKUP DATA VIA TOMBOL =====
+    if data == "backup_now":
+        from config import OWNER_ID
+        from backup import send_full_backup
+        if not OWNER_ID or user_id != OWNER_ID:
+            await query.answer("Backup hanya bisa digunakan pemilik bot.", show_alert=True)
+            return
+        await query.edit_message_text("⏳ Menyiapkan backup lengkap. File ZIP akan dikirim ke chat ini...")
+        try:
+            await send_full_backup(chat_id=update.effective_chat.id, user_id=user_id)
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="✅ Backup lengkap berhasil dikirim. Simpan file ZIP ini di Telegram."
+            )
+        except Exception as e:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"❌ Backup gagal: {str(e)[:400]}"
+            )
+        return
+
     # ===== BACK TO PREVIOUS =====
     if data == "back_to_previous":
         # Cek apakah ada pesan transaksi yang disimpan
