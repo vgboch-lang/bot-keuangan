@@ -10,7 +10,7 @@ def get_main_keyboard():
         [KeyboardButton("📈 PDF Rekap Mingguan"), KeyboardButton("📉 PDF Rekap Bulanan")],
         [KeyboardButton("📅 Bulan Berjalan"), KeyboardButton("✏️ Edit Transaksi")],
         [KeyboardButton("📁 Riwayat"), KeyboardButton("⚙️ Settings")],
-        [KeyboardButton("❓ Bantuan")]
+        [KeyboardButton("🗃️ Backup Data"), KeyboardButton("❓ Bantuan")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -28,6 +28,7 @@ def get_start_menu(visible: bool = True):
              InlineKeyboardButton("📅 Bulan Berjalan", callback_data="report_month_to_date")],
             [InlineKeyboardButton("✏️ Edit Transaksi", callback_data="edit_menu"), 
              InlineKeyboardButton("⚙️ Settings", callback_data="settings")],
+            [InlineKeyboardButton("🗃️ Backup Data", callback_data="backup_now")],
             [InlineKeyboardButton("❓ Bantuan", callback_data="help"), 
              InlineKeyboardButton("▲", callback_data="hide_menu")]
         ]
