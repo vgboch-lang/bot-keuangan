@@ -34,10 +34,12 @@ def parse_with_regex(text: str) -> Optional[Dict]:
     if rembes_match:
         item_text = rembes_match.group(1).strip()
         if item_text:
+            # Prefix "Rembes Nota" hanya menjadi penanda rekap khusus.
+            # Kategori transaksi tetap ditentukan dari nama barang/jasa.
             return {
                 'type': 'expense',
                 'amount': amount,
-                'category': 'rembes_nota',
+                'category': detect_category(item_text, CATEGORIES),
                 'item': item_text,
                 'note': text
             }
