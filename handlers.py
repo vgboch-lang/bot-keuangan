@@ -1160,6 +1160,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"📌 Callback: {data}")
 
     # ===== REKAP REMBES NOTA PER BULAN =====
+    if data == "rembes_nota_menu":
+        await show_rembes_nota_months(update, context)
+        return
+
     if data.startswith("rembes_month_"):
         month = data[len("rembes_month_"):]
         if not re.fullmatch(r"\d{4}-\d{2}", month):
