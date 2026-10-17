@@ -311,22 +311,56 @@ def delete_transaction(user_id: int, trans_id: int) -> bool:
     conn.close()
     return True
 
-def get_rembes_nota_transactions(user_id: int) -> List[Dict]:
-    """Ambil semua transaksi yang item-nya diawali 'rembes nota'."""
+def get_rembes_nota_transactions(user_id: int, month: str = None) -> List[Dict]:
+    """Ambil transaksi yang dicatat sebagai Rembes Nota, opsional dibatasi YYYY-MM.
+    
+    Transaksi baru ditandai oleh prefix pada note agar kategori aslinya tetap utuh.
+    Baris lama yang tersimpan dengan kategori rembes_nota tetap ikut direkap.
+    """
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('''
+    query = '''
         SELECT * FROM transactions
         WHERE user_id = ?
           AND is_deleted = 0
           AND type = 'expense'
-          AND (category = 'rembes_nota' OR lower(trim(item)) LIKE 'rembes nota%')
-        ORDER BY date ASC, id ASC
-    ''', (user_id,))
+          AND (
+              lower(trim(COALESCE(note, ''))) LIKE 'rembes nota%'
+              OR category = 'rembes_nota'
+              OR lower(trim(item)) LIKE 'rembes nota%'
+          )
+    '''
+    params = [user_id]
+    if month:
+        query += " AND substr(date, 1, 7) = ?"
+        params.append(month)
+    query += " ORDER BY date ASC, created_at ASC, id ASC"
+    cursor.execute(query, params)
     rows = cursor.fetchall()
     conn.close()
     return [dict(row) for row in rows]
 
+
+def get_rembes_nota_months(user_id: int) -> List[str]:
+    """Daftar bulan YYYY-MM yang memiliki transaksi Rembes Nota, terbaru dulu."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT DISTINCT substr(date, 1, 7) AS month
+        FROM transactions
+        WHERE user_id = ?
+          AND is_deleted = 0
+          AND type = 'expense'
+          AND (
+              lower(trim(COALESCE(note, ''))) LIKE 'rembes nota%'
+              OR category = 'rembes_nota'
+              OR lower(trim(item)) LIKE 'rembes nota%'
+          )
+        ORDER BY month DESC
+    ''', (user_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [row['month'] for row in rows]
 
 def get_transaction_history(user_id: int, trans_id: int) -> List[Dict]:
     conn = get_db()

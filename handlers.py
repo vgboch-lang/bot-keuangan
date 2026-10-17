@@ -14,6 +14,7 @@ from database import (
     update_transaction, delete_transaction, get_summary,
     get_user_settings, update_user_setting,
     get_transaction_history, get_all_users, get_transaction_months,
+    get_rembes_nota_transactions, get_rembes_nota_months,
     is_owner, add_authorized_user, remove_authorized_user,
     get_authorized_users, is_owner_or_approved,
     has_trial, start_trial, is_trial_active
@@ -519,6 +520,121 @@ async def handle_total_command(update: Update, context: ContextTypes.DEFAULT_TYP
         msg += f"\n🏦 Saldo: {format_rupiah(summary['balance'])}"
     await update.message.reply_text(msg, parse_mode=ParseMode.HTML, reply_markup=get_main_keyboard())
 
+
+# ==================== REKAP REMBES NOTA PER BULAN ====================
+
+def _rembes_month_label(month: str) -> str:
+    year, month_num = month.split('-')
+    names = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ]
+    return f"{names[int(month_num) - 1]} {year}"
+
+
+def _rembes_item_name(row) -> str:
+    item = re.sub(r'^\s*rembes\s+nota\s*', '', row.get('item') or '', flags=re.IGNORECASE).strip()
+    return item or (row.get('item') or 'Transaksi')
+
+
+def _format_short_amount(amount: int) -> str:
+    """Nominal ringkas untuk caption, misalnya 65k atau 1,5jt."""
+    if amount >= 1_000_000:
+        value = amount / 1_000_000
+        text = f"{value:.1f}".rstrip('0').rstrip('.').replace('.', ',')
+        return f"{text}jt"
+    if amount >= 1_000 and amount % 1_000 == 0:
+        return f"{amount // 1_000}k"
+    return format_rupiah(amount)
+
+
+def _rembes_caption(month: str, rows) -> str:
+    lines = [f"📋 <b>REKAP REMBES NOTA — {_rembes_month_label(month)}</b>", ""]
+    for i, row in enumerate(rows, 1):
+        try:
+            day = datetime.strptime(row['date'], '%Y-%m-%d').strftime('%d/%m')
+        except (TypeError, ValueError):
+            day = str(row.get('date', ''))[:10]
+        lines.append(
+            f"{i:02d}. {day} {escape(_rembes_item_name(row))} {_format_short_amount(row['amount'])}"
+        )
+    lines.extend(["", f"<b>TOTAL: {_format_short_amount(sum(row['amount'] for row in rows))}</b>"])
+    return "\n".join(lines)
+
+
+async def show_rembes_nota_months(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Tampilkan tombol hanya untuk bulan yang punya transaksi Rembes Nota."""
+    user_id = update.effective_user.id
+    months = get_rembes_nota_months(user_id)
+    if not months:
+        await update.effective_chat.send_message(
+            "📭 Belum ada transaksi Rembes Nota.",
+            reply_markup=get_main_keyboard()
+        )
+        return
+
+    keyboard_rows = []
+    for i in range(0, len(months), 2):
+        keyboard_rows.append([
+            InlineKeyboardButton(
+                f"📅 {_rembes_month_label(month)}",
+                callback_data=f"rembes_month_{month}"
+            )
+            for month in months[i:i + 2]
+        ])
+    keyboard_rows.append([InlineKeyboardButton("↩️ Menu Utama", callback_data="main_menu")])
+    await update.effective_chat.send_message(
+        "📋 <b>Rekap Rembes Nota</b>\nPilih bulan yang ingin direkap:",
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(keyboard_rows)
+    )
+
+
+async def send_rembes_nota_month(update: Update, context: ContextTypes.DEFAULT_TYPE, month: str):
+    """Kirim PDF bulanan dan daftar transaksi berurutan di caption."""
+    user_id = update.effective_user.id
+    rows = get_rembes_nota_transactions(user_id, month=month)
+    if not rows:
+        await update.effective_chat.send_message(
+            f"📭 Tidak ada transaksi Rembes Nota untuk {_rembes_month_label(month)}."
+        )
+        return
+
+    filename = generate_rembes_nota_pdf(user_id, month=month)
+    if not filename:
+        await update.effective_chat.send_message("❌ PDF Rembes Nota gagal dibuat.")
+        return
+
+    caption = _rembes_caption(month, rows)
+    # Telegram membatasi caption dokumen hingga 1024 karakter. Jika daftar terlalu
+    # panjang, tetap kirim PDF dan semua rincian sebagai pesan teks lengkap.
+    if len(caption) > 1024:
+        short_caption = (
+            f"📋 <b>REKAP REMBES NOTA — {_rembes_month_label(month)}</b>\n"
+            f"{len(rows)} transaksi\n"
+            f"<b>TOTAL: {_format_short_amount(sum(row['amount'] for row in rows))}</b>\n"
+            "Rincian lengkap dikirim di pesan berikutnya."
+        )
+    else:
+        short_caption = caption
+
+    try:
+        with open(filename, 'rb') as pdf_file:
+            await update.effective_chat.send_document(
+                document=pdf_file,
+                filename=os.path.basename(filename),
+                caption=short_caption,
+                parse_mode=ParseMode.HTML,
+                reply_markup=get_main_keyboard()
+            )
+        if len(caption) > 1024:
+            await update.effective_chat.send_message(caption, parse_mode=ParseMode.HTML)
+    finally:
+        try:
+            os.remove(filename)
+        except OSError:
+            pass
+
 # ==================== HANDLE MESSAGE ====================
 
 @authorized_only
@@ -530,6 +646,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # ===== PDF KATEGORI =====
     normalized = re.sub(r'\s+', ' ', text.strip().lower())
+    if normalized in {'📋 rekap rembes nota', 'rekap rembes nota'}:
+        await show_rembes_nota_months(update, context)
+        return
+
     category_aliases = {
         'makan': 'makanan',
         'makanan': 'makanan',
@@ -1038,6 +1158,20 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     
     logger.info(f"📌 Callback: {data}")
+
+    # ===== REKAP REMBES NOTA PER BULAN =====
+    if data == "rembes_nota_menu":
+        await show_rembes_nota_months(update, context)
+        return
+
+    if data.startswith("rembes_month_"):
+        month = data[len("rembes_month_"):]
+        if not re.fullmatch(r"\d{4}-\d{2}", month):
+            await query.answer("Bulan tidak valid.", show_alert=True)
+            return
+        await query.edit_message_text(f"⏳ Menyiapkan rekap Rembes Nota {_rembes_month_label(month)}...")
+        await send_rembes_nota_month(update, context, month)
+        return
     
     # ===== BACKUP DATA VIA TOMBOL =====
     if data == "backup_now":

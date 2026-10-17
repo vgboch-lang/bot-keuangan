@@ -136,18 +136,28 @@ def _on_later_pages(canvas, doc):
 
 # ============ GENERATE PDF REMBES NOTA ============
 
-def generate_rembes_nota_pdf(user_id):
-    """Generate PDF khusus semua transaksi yang diawali 'rembes nota'."""
-    rows = get_rembes_nota_transactions(user_id)
+def generate_rembes_nota_pdf(user_id, month=None):
+    """Generate PDF Rembes Nota untuk satu bulan (YYYY-MM), atau semua bulan jika None."""
+    rows = get_rembes_nota_transactions(user_id, month=month)
     if not rows:
         return None
 
     total = sum(row['amount'] for row in rows)
+    month_label = datetime.strptime(month, '%Y-%m').strftime('%B %Y') if month else 'Semua Bulan'
+    month_names = {
+        'January': 'Januari', 'February': 'Februari', 'March': 'Maret',
+        'April': 'April', 'May': 'Mei', 'June': 'Juni',
+        'July': 'Juli', 'August': 'Agustus', 'September': 'September',
+        'October': 'Oktober', 'November': 'November', 'December': 'Desember'
+    }
+    for english, indonesia in month_names.items():
+        month_label = month_label.replace(english, indonesia)
 
     os.makedirs('reports', exist_ok=True)
+    safe_month = month or 'semua_bulan'
     filename = os.path.join(
         'reports',
-        f"rembes_nota_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        f"rembes_nota_{safe_month}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     )
 
     styles = getSampleStyleSheet()
@@ -172,26 +182,28 @@ def generate_rembes_nota_pdf(user_id):
     story = [
         Paragraph("REKAP REMBES NOTA", title_style),
         Paragraph(
-            f"Semua transaksi dengan item diawali 'rembes nota' • "
-            f"{len(rows)} transaksi",
+            f"{month_label} • {len(rows)} transaksi",
             sub_style
         )
     ]
 
-    table_data = [['Tanggal', 'Item', 'Nominal']]
-    for row in rows:
+    table_data = [['No.', 'Tanggal', 'Item', 'Nominal']]
+    for i, row in enumerate(rows, 1):
+        item = re.sub(r'^\s*rembes\s+nota\s*', '', row['item'] or '', flags=re.IGNORECASE).strip()
+        item = item or row['item'] or 'Transaksi'
         table_data.append([
+            str(i),
             format_date(row['date']),
-            row['item'],
+            item,
             format_rupiah(row['amount'])
         ])
-    table_data.append(['', 'TOTAL', format_rupiah(total)])
+    table_data.append(['', '', 'TOTAL', format_rupiah(total)])
 
-    table = Table(table_data, colWidths=[85, 275, 86], repeatRows=1)
+    table = Table(table_data, colWidths=[32, 80, 248, 86], repeatRows=1)
     table.setStyle(_style_table(
         len(table_data),
         body_size=8,
-        right_cols=(2,),
+        right_cols=(3,),
         total_row=True
     ))
     story.append(table)
