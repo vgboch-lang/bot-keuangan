@@ -237,14 +237,20 @@ def parse_transaction(text: str, use_db: bool = True) -> List[Dict]:
     # Step 6: Cek keyword di database (auto-learning)
     for result in results:
         if use_db and result.get('item'):
-            # Rembes Nota adalah kategori khusus berbasis prefix.
-            # Jangan biarkan keyword barang seperti "plastik" mengubahnya
-            # kembali ke kategori belanja.
-            is_rembes_nota = (
-                result.get('category') == 'rembes_nota' or
-                re.match(r'^\\s*rembes\\s+nota\\b', result['item'], re.IGNORECASE)
+            # Prefix pada note menandai Rembes Nota, tetapi kategori tetap
+            # mengikuti barang/jasa (misalnya ganti oli tetap kategori transport).
+            is_rembes_marker = bool(
+                re.match(r'^\s*rembes\s+nota\b', result.get('note', ''), re.IGNORECASE)
             )
-            if is_rembes_nota:
+            is_legacy_rembes_item = bool(
+                re.match(r'^\s*rembes\s+nota\b', result['item'], re.IGNORECASE)
+            )
+            if is_rembes_marker:
+                result['type'] = 'expense'
+                if result.get('category') == 'rembes_nota':
+                    result['category'] = detect_category(result['item'], CATEGORIES)
+            elif result.get('category') == 'rembes_nota' or is_legacy_rembes_item:
+                # Kompatibilitas untuk input/data lama yang memang memakai kategori khusus.
                 result['type'] = 'expense'
                 result['category'] = 'rembes_nota'
             else:
@@ -253,7 +259,7 @@ def parse_transaction(text: str, use_db: bool = True) -> List[Dict]:
                     db_type, db_category = db_result
                     result['type'] = db_type
                     result['category'] = db_category
-                
+
         # Auto-learning: simpan keyword baru ke database
         if result.get('item'):
             existing = get_keyword_category(result['item'].lower())
