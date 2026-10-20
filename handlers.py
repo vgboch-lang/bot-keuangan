@@ -813,6 +813,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await settings_menu(update, context)
         return
     
+    elif text == "📥 Download Data Saya":
+        from backup import send_personal_database
+        status = await update.message.reply_text("⏳ Menyiapkan database pribadi kamu...")
+        try:
+            await send_personal_database(chat_id=update.effective_chat.id, user_id=user_id)
+            await status.edit_text("✅ Database pribadi berhasil dikirim.")
+        except Exception as e:
+            await status.edit_text(f"❌ Ekspor data gagal: {str(e)[:300]}")
+        return
+
     elif text == "🗃️ Backup Data":
         from backup import manual_backup
         await manual_backup(update, context)
@@ -1173,6 +1183,23 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_rembes_nota_month(update, context, month)
         return
     
+    # ===== EKSPOR DATA PRIBADI VIA TOMBOL =====
+    if data == "my_data_export":
+        from backup import send_personal_database
+        await query.edit_message_text("⏳ Menyiapkan database pribadi kamu...")
+        try:
+            await send_personal_database(chat_id=update.effective_chat.id, user_id=user_id)
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="✅ Database pribadi berhasil dikirim."
+            )
+        except Exception as e:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"❌ Ekspor data gagal: {str(e)[:300]}"
+            )
+        return
+
     # ===== BACKUP DATA VIA TOMBOL =====
     if data == "backup_now":
         from config import OWNER_ID
