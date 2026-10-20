@@ -113,6 +113,83 @@ def create_full_backup(user_id=None, report_start=None, report_end=None):
     return final_path
 
 
+def create_personal_database(user_id):
+    """Buat salinan SQLite yang hanya berisi data milik satu akun Telegram."""
+    if not os.path.exists(DATABASE_FILE):
+        raise FileNotFoundError(f"Database tidak ditemukan: {DATABASE_FILE}")
+
+    with tempfile.TemporaryDirectory(prefix="finance_personal_") as tmp:
+        path = os.path.join(tmp, f"Data_Keuangan_{user_id}.db")
+        _snapshot_database(path)
+        conn = sqlite3.connect(path)
+        try:
+            conn.execute("PRAGMA foreign_keys = ON")
+            # Riwayat edit hanya untuk transaksi milik akun ini.
+            conn.execute("""
+                DELETE FROM transaction_history
+                WHERE transaction_id NOT IN (
+                    SELECT id FROM transactions WHERE user_id = ?
+                )
+            """, (user_id,))
+            conn.execute("""
+                DELETE FROM user_transactions_temp
+                WHERE user_id IS NULL OR user_id != ?
+                   OR transaction_id NOT IN (
+                       SELECT id FROM transactions WHERE user_id = ?
+                   )
+            """, (user_id, user_id))
+            conn.execute("DELETE FROM transactions WHERE user_id IS NULL OR user_id != ?", (user_id,))
+            conn.execute("DELETE FROM user_settings WHERE user_id IS NULL OR user_id != ?", (user_id,))
+            conn.execute("DELETE FROM authorized_users WHERE user_id IS NULL OR user_id != ?", (user_id,))
+            conn.execute("DELETE FROM trial_users WHERE user_id IS NULL OR user_id != ?", (user_id,))
+            # Kata kunci bersifat global dan bisa berasal dari input akun lain.
+            # Kosongkan isinya agar ekspor tidak membawa data lintas akun.
+            conn.execute("DELETE FROM category_keywords")
+            conn.commit()
+            check = conn.execute("PRAGMA integrity_check").fetchone()
+            if not check or check[0] != "ok":
+                raise ValueError("Pemeriksaan integritas database ekspor gagal.")
+        finally:
+            conn.close()
+
+        final_path = os.path.join(
+            tempfile.gettempdir(),
+            f"Data_Keuangan_{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+        )
+        shutil.copy2(path, final_path)
+        return final_path
+
+
+async def send_personal_database(chat_id, user_id):
+    """Kirim database ekspor yang hanya berisi data akun peminta."""
+    path = create_personal_database(user_id)
+    try:
+        size = os.path.getsize(path)
+        if size > MAX_TELEGRAM_BYTES:
+            raise ValueError(
+                f"File berukuran {size / 1024 / 1024:.1f} MB, "
+                "melewati batas upload Telegram 50 MB."
+            )
+        bot = Bot(token=BOT_TOKEN)
+        with open(path, "rb") as f:
+            await bot.send_document(
+                chat_id=chat_id,
+                document=f,
+                filename=os.path.basename(path),
+                caption=(
+                    "📥 <b>Database Keuangan Saya</b>\n"
+                    "File ini hanya berisi transaksi, riwayat edit, dan pengaturan akun kamu.\n"
+                    "Data akun lain tidak disertakan."
+                ),
+                parse_mode="HTML",
+            )
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
 async def send_full_backup(chat_id, user_id=None, report_start=None, report_end=None):
     """Buat dan kirim backup lengkap ke Telegram."""
     path = create_full_backup(
