@@ -42,6 +42,22 @@ def main():
     application.add_handler(CommandHandler("deny", deny_command))
     application.add_handler(CommandHandler("users", users_command))
     application.add_handler(CommandHandler("backup", manual_backup))
+
+    # Ekspor database pribadi; akses mengikuti pembatasan bot yang sudah ada.
+    @authorized_only
+    async def dataku_command(update, context):
+        from backup import send_personal_database
+        status = await update.message.reply_text("⏳ Menyiapkan database pribadi kamu...")
+        try:
+            await send_personal_database(
+                chat_id=update.effective_chat.id,
+                user_id=update.effective_user.id
+            )
+            await status.edit_text("✅ Database pribadi berhasil dikirim.")
+        except Exception as e:
+            await status.edit_text(f"❌ Ekspor data gagal: {str(e)[:300]}")
+
+    application.add_handler(CommandHandler("dataku", dataku_command))
     
     # Command: myid (lihat user id sendiri, tidak butuh izin)
     async def myid_command(update, context):
