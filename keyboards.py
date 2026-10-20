@@ -11,7 +11,8 @@ def get_main_keyboard():
         [KeyboardButton("📅 Bulan Berjalan"), KeyboardButton("✏️ Edit Transaksi")],
         [KeyboardButton("📁 Riwayat"), KeyboardButton("⚙️ Settings")],
         [KeyboardButton("📋 Rekap Rembes Nota")],
-        [KeyboardButton("🗃️ Backup Data"), KeyboardButton("❓ Bantuan")]
+        [KeyboardButton("📥 Download Data Saya"), KeyboardButton("🗃️ Backup Data")],
+        [KeyboardButton("❓ Bantuan")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -30,6 +31,7 @@ def get_start_menu(visible: bool = True):
             [InlineKeyboardButton("✏️ Edit Transaksi", callback_data="edit_menu"), 
              InlineKeyboardButton("⚙️ Settings", callback_data="settings")],
             [InlineKeyboardButton("📋 Rekap Rembes Nota", callback_data="rembes_nota_menu")],
+            [InlineKeyboardButton("📥 Data Saya", callback_data="my_data_export")],
             [InlineKeyboardButton("🗃️ Backup Data", callback_data="backup_now")],
             [InlineKeyboardButton("❓ Bantuan", callback_data="help"), 
              InlineKeyboardButton("▲", callback_data="hide_menu")]
