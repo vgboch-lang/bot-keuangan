@@ -770,6 +770,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
+    elif text == "📈 Investasi Saham":
+        from database import get_transactions
+        from datetime import date
+        today = date.today()
+        start = today.replace(day=1).isoformat()
+        end = today.isoformat()
+        investments = get_transactions(user_id, start, end, type_filter="investment")
+        total = sum(t["amount"] for t in investments)
+        lines = ["📈 <b>Investasi Saham — bulan ini</b>", f"Total pembelian: {format_rupiah(total)}", ""]
+        if investments:
+            for t in reversed(investments[-20:]):
+                lines.append(f"• {format_date(t['date'])} — {escape(t['item'])}: {format_rupiah(t['amount'])}")
+        else:
+            lines.append("Belum ada pembelian saham bulan ini.")
+        lines += ["", "Catat pembelian dengan format: <code>saham BBCA 100k</code>", "Transaksi saham tidak masuk total pengeluaran."]
+        await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML, reply_markup=get_main_keyboard())
+        return
+    
     elif text == "💰 Pemasukan":
         await update.message.reply_text(
             "💰 Kirim pemasukan:\n\n"
