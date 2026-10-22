@@ -10,7 +10,7 @@ def get_main_keyboard():
         [KeyboardButton("📈 PDF Rekap Mingguan"), KeyboardButton("📉 PDF Rekap Bulanan")],
         [KeyboardButton("📅 Bulan Berjalan"), KeyboardButton("✏️ Edit Transaksi")],
         [KeyboardButton("📁 Riwayat"), KeyboardButton("⚙️ Settings")],
-        [KeyboardButton("📋 Rekap Rembes Nota")],
+        [KeyboardButton("📋 Rekap Rembes Nota"), KeyboardButton("📈 Investasi Saham")],
         [KeyboardButton("📥 Download Data Saya"), KeyboardButton("🗃️ Backup Data")],
         [KeyboardButton("❓ Bantuan")]
     ]
