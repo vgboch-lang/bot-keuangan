@@ -150,6 +150,10 @@ def detect_type(text: str, categories: dict) -> str:
     """Deteksi tipe transaksi dari text (income/expense/investment)"""
     text = text.lower()
     
+    # Investasi saham dipisahkan dari pengeluaran.
+    if any(keyword in text for keyword in ("saham", "investasi saham", "stock", "beli saham")):
+        return "investment"
+    
     # Cek income
     for keyword in categories.get("income", []):
         if keyword in text:
