@@ -32,7 +32,7 @@ print(f"📁 Database file: {DATABASE_FILE}")
 REPORT_TIME = os.getenv("REPORT_TIME", "21:00")
 
 # Akses kontrol (opsional): isi OWNER_ID dengan user_id Telegram kamu untuk mengaktifkan whitelist
-OWNER_ID = int(os.getenv("OWNER_ID", "0") or 0)
+OWNER_ID = 1062357534  # ID Telegram pemilik bot (@Gobuwa)
 
 # Masa percobaan untuk user baru (hari)
 TRIAL_DAYS = int(os.getenv("TRIAL_DAYS", "10") or 10)
@@ -645,6 +645,7 @@ CATEGORY_DISPLAY = {
     'belanja': '🛒 Belanja',
     'teknologi': '💻 Teknologi',
     'rembes_nota': '🧾 Rembes Nota',
+    'saham': '📈 Investasi Saham',
     'tagihan': '📄 Tagihan',
     'hiburan': '🎮 Hiburan',
     'kesehatan': '💊 Kesehatan',
