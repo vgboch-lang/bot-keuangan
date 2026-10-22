@@ -409,7 +409,8 @@ def _get_summary_conn(conn, user_id: int, start_date: str, end_date: str) -> Dic
             result['expense_breakdown'][row['category']] = result['expense_breakdown'].get(row['category'], 0) + row['total']
             result['count_expense'] += 1
 
-    result['balance'] = result['total_income'] + result['total_investment'] - result['total_expense']
+    # Investasi bukan pengeluaran konsumsi, tetapi tetap mengurangi kas tersedia.
+    result['balance'] = result['total_income'] - result['total_expense'] - result['total_investment']
     return result
 
 def get_summary(user_id: int, start_date: str, end_date: str) -> Dict:
