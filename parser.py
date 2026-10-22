@@ -46,7 +46,9 @@ def parse_with_regex(text: str) -> Optional[Dict]:
 
     type_ = detect_type(text, CATEGORIES)
     
-    if type_ == "income":
+    if type_ == "investment":
+        category = "saham"
+    elif type_ == "income":
         category = detect_income_category(text)
     else:
         # "Rembes Nota" adalah kategori khusus dan harus mengalahkan
@@ -253,7 +255,7 @@ def parse_transaction(text: str, use_db: bool = True) -> List[Dict]:
                 # Kompatibilitas untuk input/data lama yang memang memakai kategori khusus.
                 result['type'] = 'expense'
                 result['category'] = 'rembes_nota'
-            else:
+            elif result.get('type') != 'investment':
                 db_result = check_keyword_in_db(result['item'])
                 if db_result:
                     db_type, db_category = db_result
@@ -272,12 +274,6 @@ def parse_transaction(text: str, use_db: bool = True) -> List[Dict]:
                         existing_word = get_keyword_category(word)
                         if not existing_word:
                             save_keyword(word, result['type'], result['category'])
-    
-    # Fitur investasi sudah dihapus: pastikan tidak ada transaksi bertipe investment
-    for result in results:
-        if result.get('type') == 'investment':
-            result['type'] = 'expense'
-            result['category'] = 'lainnya'
     
     # SAFETY: PASTIKAN RETURN LIST!
     if not isinstance(results, list):
