@@ -224,9 +224,24 @@ async def send_full_backup(chat_id, user_id=None, report_start=None, report_end=
             pass
 
 
+def is_backup_owner(user_id):
+    """Pemeriksaan pemilik backup yang tahan terhadap ID berbentuk string/int."""
+    try:
+        numeric_id = int(user_id)
+    except (TypeError, ValueError):
+        return False
+
+    # ID pemilik utama ditetapkan eksplisit agar backup tidak terkunci
+    # karena konfigurasi OWNER_ID di runtime berbeda dengan kode GitHub.
+    return numeric_id == 1062357534 or (
+        OWNER_ID is not None and str(OWNER_ID).strip().isdigit()
+        and numeric_id == int(OWNER_ID)
+    )
+
+
 async def manual_backup(update, context):
     """Perintah /backup — hanya owner."""
-    if not OWNER_ID or update.effective_user.id != OWNER_ID:
+    if not is_backup_owner(update.effective_user.id):
         await update.message.reply_text("⛔ Perintah backup hanya untuk pemilik bot.")
         return
 
