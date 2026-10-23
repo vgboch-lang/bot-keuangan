@@ -1220,9 +1220,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ===== BACKUP DATA VIA TOMBOL =====
     if data == "backup_now":
-        from config import OWNER_ID
-        from backup import send_full_backup
-        if not OWNER_ID or user_id != OWNER_ID:
+        from backup import is_backup_owner, send_full_backup
+        if not is_backup_owner(user_id):
             await query.answer("Backup hanya bisa digunakan pemilik bot.", show_alert=True)
             return
         await query.edit_message_text("⏳ Menyiapkan backup lengkap. File ZIP akan dikirim ke chat ini...")
